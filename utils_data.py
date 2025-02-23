@@ -207,8 +207,8 @@ def get_xy_glue(toget = 'ensemble'):
     y = le.fit_transform(df[toget].values)
     return X,y
 
-def get_disagree_glue():
-    df = pd.read_csv(f'results/investigate/87_glue_cola_investigate.csv')
+def get_disagree_glue(path_beginning = ''):
+    df = pd.read_csv(f'{path_beginning}/results/investigate/87_glue_cola_investigate.csv')
     # Get indices where original target and ensemble predictions disagree
     original = np.array(df['original_target'], dtype=int)
     ensemble = np.array(df['ensemble'], dtype=int)
