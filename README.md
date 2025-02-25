@@ -1,6 +1,5 @@
 # Are Sparse Autoencoders Useful? A Case Study in Sparse Probing
-
-JOSH PLZ ADD TWITTER IMG HERE
+<img width="1213" alt="Screenshot 2025-02-24 at 9 58 54 PM" src="https://github.com/user-attachments/assets/09a20f0b-9f45-4382-b6c2-e70bba6c17db" />
 
 This repository contains code to replicate experiments from the paper *Are Sparse Autoencoders Useful? A Case Study in Sparse Probing*. The workflow of our code involves three primary stages:
 
