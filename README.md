@@ -7,9 +7,12 @@ This repository contains code to replicate experiments from the paper *Are Spars
    - Model activations for probing datasets are generated in `generate_model_activations.py`
    - SAE activations are generated in `generate_sae_activations.py`
    - OOD regime activations are specifically generated in `plot_ood.ipynb`.
+   - Mutli-token activations are specifically generated in `generate_model_and_sae_multi_token_acts.py`. Caution: this will take up a lot of memory (~1TB).
 
-2. **Creating Probes:**
-   - Baseline probes are created using `run_baselines.py`. This script also includes additional functions for OOD experiments related to probe pruning and latent interpretability (see Sections 4.1 and 4.2 of the paper).
+2. **Training Probes:**
+   - Baseline probes are trained using `run_baselines.py`. This script also includes additional functions for OOD experiments related to probe pruning and latent interpretability (see Sections 4.1 and 4.2 of the paper).
+   - SAE probes are trained using `train_sae_probes.py`.
+   - Multi token SAE probes and baseline probes are trained using `run_multi_token_acts.py`.
 
 3. **Visualizing Results:**
    - Standard condition plots: `plot_normal.ipynb`
