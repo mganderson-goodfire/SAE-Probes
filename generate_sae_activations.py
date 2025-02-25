@@ -252,85 +252,7 @@ def save_with_sae_imbalance(layer, sae, sae_id, model_name, device, reg_type):
             save_activations(y_train_path, torch.tensor(y_train))
             save_activations(y_test_path, torch.tensor(y_test))
 
-# %%
-# Label noise setting functions
-def get_sae_paths_noise(dataset, layer, sae_id, reg_type, corrupt_frac, model_name="gemma-2-9b"):
-    """Get paths for label noise setting"""
-    os.makedirs(f"data/sae_probes_{model_name}/label_noise_setting", exist_ok=True)
-    
-    if model_name == "gemma-2-9b":
-        width = sae_id.split("/")[1]
-        l0 = sae_id.split("/")[2]
-        description_string = f"{dataset}_{layer}_{width}_{l0}"
-    elif model_name == "llama-3.1-8b":
-        description_string = f"{dataset}_{sae_id}"
-    elif model_name == "gemma-2-2b":
-        name = '_'.join(sae_id[2].split('/')[0].split('_')[1:])
-        l0 = sae_id[3]
-        rounded_l0 = round(float(l0))
-        description_string = f"{dataset}_{name}_{rounded_l0}"
-    else:
-        raise ValueError(f"Invalid model name: {model_name}")
-        
-    save_path = f"data/sae_probes_{model_name}/label_noise_setting/{description_string}_{reg_type}_corrupt{corrupt_frac}.pkl"
-    # Note: Label noise setting reuses normal setting activations
-    train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_X_train_sae.pt"
-    test_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_X_test_sae.pt"
-    y_train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_y_train.pt"
-    y_test_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_y_test.pt"
-    return {
-        "save_path": save_path,
-        "train_path": train_path,
-        "test_path": test_path,
-        "y_train_path": y_train_path,
-        "y_test_path": y_test_path
-    }
 
-# %%
-# Consolidated probing functions
-def get_sae_paths_consolidated(dataset, layer, sae_id, binarize=False, model_name="gemma-2-9b"):
-    """Get paths for consolidated probing"""
-    os.makedirs(f"data/consolidated_probing_{model_name}", exist_ok=True)
-    
-    if model_name == "gemma-2-9b":
-        l0 = sae_id.split("/")[2].split("_")[-1]
-        width = sae_id.split("/")[1]
-        save_paths = [
-            f"data/consolidated_probing_{model_name}/{dataset}_{layer}_{width}_l0{l0}_mean{'_binarized' if binarize else ''}.pkl",
-            f"data/consolidated_probing_{model_name}/{dataset}_{layer}_{width}_l0{l0}_max{'_binarized' if binarize else ''}.pkl"
-        ]
-    elif model_name == "llama-3.1-8b" or model_name == "gemma-2-2b":
-        # Adjust path format for other models
-        save_paths = [
-            f"data/consolidated_probing_{model_name}/{dataset}_{layer}_{sae_id}_mean{'_binarized' if binarize else ''}.pkl",
-            f"data/consolidated_probing_{model_name}/{dataset}_{layer}_{sae_id}_max{'_binarized' if binarize else ''}.pkl"
-        ]
-    
-    # For consolidated probing, we use the normal setting activations
-    if model_name == "gemma-2-9b":
-        width = sae_id.split("/")[1]
-        l0 = sae_id.split("/")[2]
-        description_string = f"{dataset}_{layer}_{width}_{l0}"
-    elif model_name == "llama-3.1-8b":
-        description_string = f"{dataset}_{sae_id}"
-    elif model_name == "gemma-2-2b":
-        name = '_'.join(sae_id[2].split('/')[0].split('_')[1:])
-        l0 = sae_id[3]
-        rounded_l0 = round(float(l0))
-        description_string = f"{dataset}_{name}_{rounded_l0}"
-    
-    train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_X_train_sae.pt"
-    test_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_X_test_sae.pt"
-    y_train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_y_train.pt"
-    y_test_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_y_test.pt"
-    
-    return {
-        "save_paths": save_paths,
-        "train_path": train_path,
-        "test_path": test_path,
-        "y_train_path": y_train_path,
-        "y_test_path": y_test_path
-    }
 
 # %%
 # Process SAEs for a specific model and setting
@@ -424,50 +346,7 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
                     except Exception as e:
                         print(f"Error loading SAE {sae_id}: {e}")
                         continue
-            
-            elif setting == "noise":
-                # For noise setting, we just need to check if normal setting activations exist
-                # since we reuse those and just corrupt the labels at training time
-                for dataset in datasets:
-                    paths = get_sae_paths_noise(dataset, layer, sae_id, reg_type, 0.0, model_name)  # Corrupt frac doesn't matter for checking
-                    if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
-                                                          paths["y_train_path"], paths["y_test_path"]]):
-                        print(f"Missing normal setting data for dataset {dataset} needed for noise setting")
-                        missing_data = True
-                        break
-                
-                if missing_data:
-                    try:
-                        sae = sae_id_to_sae(sae_id, model_name, device)
-                        print(f"Generating normal setting SAE data for layer {layer}, SAE {sae_id} (needed for noise setting)")
-                        save_with_sae_normal(layer, sae, sae_id, model_name, device, reg_type, binarize)
-                        found_missing = True
-                        break
-                    except Exception as e:
-                        print(f"Error loading SAE {sae_id}: {e}")
-                        continue
-            
-            elif setting == "consolidated":
-                # For consolidated probing, we also need normal setting activations
-                for dataset in datasets:
-                    paths = get_sae_paths_consolidated(dataset, layer, sae_id, binarize, model_name)
-                    if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
-                                                          paths["y_train_path"], paths["y_test_path"]]):
-                        print(f"Missing normal setting data for dataset {dataset} needed for consolidated probing")
-                        missing_data = True
-                        break
-                
-                if missing_data:
-                    try:
-                        sae = sae_id_to_sae(sae_id, model_name, device)
-                        print(f"Generating normal setting SAE data for layer {layer}, SAE {sae_id} (needed for consolidated probing)")
-                        save_with_sae_normal(layer, sae, sae_id, model_name, device, reg_type, binarize)
-                        found_missing = True
-                        break
-                    except Exception as e:
-                        print(f"Error loading SAE {sae_id}: {e}")
-                        continue
-        
+       
         if found_missing:
             break
     
@@ -485,7 +364,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--model_name", type=str, default=None, choices=["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"])
     parser.add_argument("--setting", type=str, default=None, 
-                        choices=["normal", "scarcity", "imbalance", "noise", "consolidated"])
+                        choices=["normal", "scarcity", "imbalance"])
     parser.add_argument("--binarize", action="store_true")
     parser.add_argument("--reg_type", type=str, choices=["l1", "l2"], default="l1")
     parser.add_argument("--randomize_order", action="store_true", help="Randomize the order of datasets and settings, useful for parallelizing")
