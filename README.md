@@ -22,7 +22,18 @@ This repository contains code to replicate experiments from the paper *Are Spars
 - **Raw Text Datasets:** Accessible via [Dropbox link](https://www.dropbox.com/scl/fo/lvajx9100jsy3h9cvis7q/AIocXXICIwHsz-HsXSekC3Y?rlkey=tq7td61h1fufm01cbdu2oqsb5&st=aorlnph5&dl=0).
 - **Model Activations:** Also stored on Dropbox (Note: Files are large).
 
+## Requirements
+The required python packages to run this repo are
+torch transformer_lens scikit-learn sae_lens sae_bench
+We recommend you create a new python venv named probing and install these packages with pip:
+
 ```
+python -m venv probing
+source probing/bin/activate
+pip install transformer_lens sae_lens transformers datasets torch adjustText circuitsvis ipython
+```
+Let us know if anything does not work with this environment!
+
 
 For any questions or clarifications, please open an issue or reach out to us!
 
