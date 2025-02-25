@@ -15,7 +15,6 @@ import argparse
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
 
-data_dir = "/mnt/sdb/jengels/data"
 model_name = "gemma-2-9b" 
 max_seq_len = 256
 layer = 20
@@ -63,7 +62,6 @@ for dataset in datasets:
         row[f'SAE (last) l0={l0} val'] = sae_row["val_auc"].iloc[0] if not sae_row.empty else None
     # Load consolidated probing results from pickle files if they exist
     consolidated_files = glob.glob(f"data/consolidated_probing_{model_name}/{dataset}_{layer}_*.pkl")
-    
     for file in consolidated_files:
         with open(file, "rb") as f:
             metrics = pkl.load(f)
