@@ -1,7 +1,7 @@
 # Are Sparse Autoencoders Useful? A Case Study in Sparse Probing
 <img width="1213" alt="Screenshot 2025-02-24 at 9 58 54 PM" src="https://github.com/user-attachments/assets/09a20f0b-9f45-4382-b6c2-e70bba6c17db" />
 
-This repository contains code to replicate experiments from the paper *Are Sparse Autoencoders Useful? A Case Study in Sparse Probing*. The workflow of our code involves three primary stages:
+This repository contains code to replicate experiments from the paper *Are Sparse Autoencoders Useful? A Case Study in Sparse Probing*. The workflow of our code involves three primary stages. Each part should be mostly executable independently from artifacts we make available:
 
 1. **Generating Model and SAE Activations:**
    - Model activations for probing datasets are generated in `generate_model_activations.py`
@@ -21,8 +21,12 @@ This repository contains code to replicate experiments from the paper *Are Spars
    - OOD plots: `plot_ood.ipynb`
    - Llama-3.1-8B results replication: `plot_llama.ipynb`
    - GLUE CoLA and AIMade investigations (Sections 4.3.1 and 4.3.2): `dataset_investigations/`
+   - AI vs. human final token plots: `ai_vs_humanmade_plot.py`
    - SAE architectural improvements (Section 6): `sae_improvement.ipynb`
    - Multi token: `plot_multi_token.py`
+   - K vs. AUC plot broken down by dataset (in appendix): `k_vs_auc_plot.py` 
+   
+Note that these should all be runnable as is from the results data in the repo.
 
 ### Datasets
 - **Raw Text Datasets:** Accessible via [Dropbox link](https://www.dropbox.com/scl/fo/lvajx9100jsy3h9cvis7q/AIocXXICIwHsz-HsXSekC3Y?rlkey=tq7td61h1fufm01cbdu2oqsb5&st=aorlnph5&dl=0).
@@ -33,7 +37,7 @@ We recommend you create a new python venv named probing and install required pac
 ```
 python -m venv probing
 source probing/bin/activate
-pip install transformer_lens sae_lens transformers datasets torch xgboost sae_bench scikit-learn
+pip install transformer_lens sae_lens transformers datasets torch xgboost sae_bench scikit-learn natsort
 ```
 Let us know if anything does not work with this environment!
 
