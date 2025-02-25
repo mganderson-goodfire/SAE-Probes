@@ -4,6 +4,7 @@ import os
 import argparse
 import warnings
 from tqdm import tqdm
+import random
 from sklearn.exceptions import ConvergenceWarning
 from utils_data import (
     get_dataset_sizes, 
@@ -333,7 +334,7 @@ def get_sae_paths_consolidated(dataset, layer, sae_id, binarize=False, model_nam
 
 # %%
 # Process SAEs for a specific model and setting
-def process_model_setting(model_name, setting, device, reg_type, binarize):
+def process_model_setting(model_name, setting, device, reg_type, binarize, randomize_order):
     print(f"Running SAE activation generation for {model_name} in {setting} setting")
     
     layers = get_sae_layers(model_name)
@@ -341,6 +342,9 @@ def process_model_setting(model_name, setting, device, reg_type, binarize):
     
     for layer in layers:
         sae_ids = layer_to_sae_ids(layer, model_name)
+        
+        if randomize_order:
+            random.shuffle(sae_ids)
         
         for sae_id in sae_ids:
             print(f"Processing SAE: {sae_id}")
@@ -484,6 +488,7 @@ if __name__ == "__main__":
                         choices=["normal", "scarcity", "imbalance", "noise", "consolidated"])
     parser.add_argument("--binarize", action="store_true")
     parser.add_argument("--reg_type", type=str, choices=["l1", "l2"], default="l1")
+    parser.add_argument("--randomize_order", action="store_true", help="Randomize the order of datasets and settings, useful for parallelizing")
 
     args = parser.parse_args()
     device = args.device
@@ -491,7 +496,7 @@ if __name__ == "__main__":
     setting = args.setting
     binarize = args.binarize
     reg_type = args.reg_type
-
+    randomize_order = args.randomize_order
 
     model_names = ["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"]
     settings = ["normal", "scarcity", "imbalance", "noise", "consolidated"]
@@ -503,11 +508,13 @@ if __name__ == "__main__":
 
     # Otherwise, loop through all models and settings
     for curr_model_name in model_names:
+        if randomize_order:
+            random.shuffle(settings)
         for curr_setting in settings:
             print(f"\n{'='*50}")
             print(f"Processing {curr_model_name} in {curr_setting} setting")
             print(f"{'='*50}\n")
             do_loop = True
             while do_loop:
-                do_loop = process_model_setting(curr_model_name, curr_setting, device, reg_type, binarize)
+                do_loop = process_model_setting(curr_model_name, curr_setting, device, reg_type, binarize, randomize_order)
 

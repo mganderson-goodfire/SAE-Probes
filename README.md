@@ -4,7 +4,8 @@
 This repository contains code to replicate experiments from the paper *Are Sparse Autoencoders Useful? A Case Study in Sparse Probing*. The workflow of our code involves three primary stages:
 
 1. **Generating Model and SAE Activations:**
-   - Model and SAE activations for probing datasets are generated in `JOSH FILL IN`.
+   - Model activations for probing datasets are generated in `generate_model_activations.py`
+   - SAE activations are generated in `generate_sae_activations.py`
    - OOD regime activations are specifically generated in `plot_ood.ipynb`.
 
 2. **Creating Probes:**
