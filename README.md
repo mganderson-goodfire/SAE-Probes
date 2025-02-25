@@ -1,7 +1,7 @@
 # Are Sparse Autoencoders Useful? A Case Study in Sparse Probing
 <img width="1213" alt="Screenshot 2025-02-24 at 9 58 54 PM" src="https://github.com/user-attachments/assets/09a20f0b-9f45-4382-b6c2-e70bba6c17db" />
 
-This repository contains code to replicate experiments from the paper *Are Sparse Autoencoders Useful? A Case Study in Sparse Probing*. The workflow of our code involves three primary stages. Each part should be mostly executable independently from artifacts we make available:
+This repository contains code to replicate experiments from the paper [*Are Sparse Autoencoders Useful? A Case Study in Sparse Probing*](https://arxiv.org/pdf/2502.16681). The workflow of our code involves three primary stages. Each part should be mostly executable independently from artifacts we make available:
 
 1. **Generating Model and SAE Activations:**
    - Model activations for probing datasets are generated in `generate_model_activations.py`
