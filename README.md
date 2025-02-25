@@ -11,8 +11,9 @@ This repository contains code to replicate experiments from the paper *Are Spars
 
 2. **Training Probes:**
    - Baseline probes are trained using `run_baselines.py`. This script also includes additional functions for OOD experiments related to probe pruning and latent interpretability (see Sections 4.1 and 4.2 of the paper).
-   - SAE probes are trained using `train_sae_probes.py`.
+   - SAE probes are trained using `train_sae_probes.py`. Sklearn regression is most efficient when run in a single thread, and then many of those threads can be run in parallel. We include an example of how to do this in `train_sae_probes.sh`.
    - Multi token SAE probes and baseline probes are trained using `run_multi_token_acts.py`.
+   - Combining all results into csvs after they are done is done with `combine_results.py`.
 
 3. **Visualizing Results:**
    - Standard condition plots: `plot_normal.ipynb`
@@ -21,6 +22,7 @@ This repository contains code to replicate experiments from the paper *Are Spars
    - Llama-3.1-8B results replication: `plot_llama.ipynb`
    - GLUE CoLA and AIMade investigations (Sections 4.3.1 and 4.3.2): `dataset_investigations/`
    - SAE architectural improvements (Section 6): `sae_improvement.ipynb`
+   - Multi token: `plot_multi_token.py`
 
 ### Datasets
 - **Raw Text Datasets:** Accessible via [Dropbox link](https://www.dropbox.com/scl/fo/lvajx9100jsy3h9cvis7q/AIocXXICIwHsz-HsXSekC3Y?rlkey=tq7td61h1fufm01cbdu2oqsb5&st=aorlnph5&dl=0).
