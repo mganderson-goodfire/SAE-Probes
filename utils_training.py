@@ -15,7 +15,7 @@ from utils_data import get_xy_traintest
 from sklearn.model_selection import RandomizedSearchCV
 import sklearn
 import time
-
+import torch
 try:
     from IPython import get_ipython  # type: ignore
 
@@ -458,3 +458,98 @@ def find_best_mlp(X_train, y_train, X_test, y_test, classification=True, binary 
 # # X_train, y_train, X_test, y_test = get_xy_traintest(numbered_dataset_tag = '5_hist_fig_ismale', num_train=1024, layer = 9)
 # metrics = find_best_reg(X_train, y_train, X_test, y_test, seed = 12)
 # print(metrics)
+
+
+def largest_nonzero_col_per_row(A: torch.Tensor, sentinel: int = -1) -> torch.Tensor:
+    """
+    Returns a 1D tensor of length A.size(0), where each entry is the
+    largest column index of a nonzero element in that row of A.
+    If a row is entirely zero, its index is set to `sentinel`.
+    
+    This uses the "mask * column-indices + max" approach.
+
+    Args:
+        A (torch.Tensor): A 2D tensor of shape (rows, cols).
+        sentinel (int): The value to assign for rows with no nonzero entries.
+
+    Returns:
+        torch.Tensor: A 1D tensor of length A.size(0).
+    """
+    # 1. Create a boolean mask for nonzero entries
+    mask = (A != 0)  # shape: [rows, cols]
+
+    # 2. Create an integer range [0, 1, 2, ..., cols-1]
+    #    and let it broadcast to [rows, cols] when multiplied by mask.
+    cols = torch.arange(A.size(1), device=A.device)
+
+    # 3. Multiply mask by the column indices and take max across each row.
+    #    This effectively picks the largest column index where the row is nonzero.
+    max_indices_per_row = (mask * cols).max(dim=1).values
+
+    # 4. Identify rows that have no nonzero entries. Their max will be 0,
+    #    but that may also be a valid column index. So we set them to sentinel explicitly.
+    no_nonzeros = ~mask.any(dim=1)
+    max_indices_per_row[no_nonzeros] = sentinel
+
+    return max_indices_per_row
+
+
+def train_aggregated_probe_on_acts(X_train, X_test, y_train, y_test, aggregation_method, k=None, binarize=False):
+    """Train probe on aggregated activations"""
+
+    
+    train_sums = X_train.sum(dim=-1)
+    last_nonzero_train = largest_nonzero_col_per_row(train_sums)
+
+    test_sums = X_test.sum(dim=-1)
+    last_nonzero_test = largest_nonzero_col_per_row(test_sums)
+
+    if aggregation_method == "mean":
+        # Create masks for each sequence to only include tokens after first_nonzero, skipping first token
+        train_mask = (torch.arange(X_train.size(1))[None, :] <= last_nonzero_train[:, None]) & (torch.arange(X_train.size(1))[None, :] > 0)
+        test_mask = (torch.arange(X_test.size(1))[None, :] <= last_nonzero_test[:, None]) & (torch.arange(X_test.size(1))[None, :] > 0)
+        
+        # Apply masks and take mean only over valid tokens
+        X_train_agg = (X_train * train_mask[:, :, None]).sum(dim=1) / train_mask.sum(dim=1)[:, None]
+        X_test_agg = (X_test * test_mask[:, :, None]).sum(dim=1) / test_mask.sum(dim=1)[:, None]
+    elif aggregation_method == "max":
+        # Set tokens before first_nonzero and first token to negative infinity so they won't be selected by max
+        train_mask = (torch.arange(X_train.size(1))[None, :] <= last_nonzero_train[:, None]) & (torch.arange(X_train.size(1))[None, :] > 0)
+        test_mask = (torch.arange(X_test.size(1))[None, :] <= last_nonzero_test[:, None]) & (torch.arange(X_test.size(1))[None, :] > 0)
+        
+        X_train_masked = X_train.clone()
+        X_test_masked = X_test.clone()
+        X_train_masked[~train_mask.unsqueeze(-1).expand_as(X_train)] = float('-inf')
+        X_test_masked[~test_mask.unsqueeze(-1).expand_as(X_test)] = float('-inf')
+        
+        X_train_agg = X_train_masked.max(dim=1).values
+        X_test_agg = X_test_masked.max(dim=1).values
+    else:
+        raise ValueError(f"Invalid aggregation method: {aggregation_method}")
+    
+    if binarize:
+        X_train_agg = (X_train_agg > 1).float()
+        X_test_agg = (X_test_agg > 1).float()
+
+    if k is not None:
+        X_train_diff = X_train_agg[y_train == 1].mean(dim=0) - X_train_agg[y_train == 0].mean(dim=0)
+        sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
+        top_by_average_diff = sorted_indices[:k]
+        X_train_filtered = X_train_agg[:, top_by_average_diff] 
+        X_test_filtered = X_test_agg[:, top_by_average_diff]
+    else:
+        X_train_filtered = X_train_agg
+        X_test_filtered = X_test_agg
+
+    res = find_best_reg(
+        X_train=X_train_filtered, 
+        y_train=y_train, 
+        X_test=X_test_filtered, 
+        y_test=y_test, 
+        plot=False, 
+        n_jobs=-1, 
+        parallel=False, 
+        penalty="l1"
+    )
+
+    return res

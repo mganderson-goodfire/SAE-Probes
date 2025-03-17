@@ -6,7 +6,7 @@
 
 import glob
 import pandas as pd
-from transformer_lens import HookedTransformer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 from tqdm import tqdm
 import os
@@ -20,27 +20,32 @@ import einops
 
 torch.set_grad_enabled(False)
 
-data_dir = "/mnt/sdb/jengels/data"
+data_dir = "/mnt/sdc/jengels/data"
+
+# %%
 
 model_name = "gemma-2-9b"
-device = "cuda:1"
+device = "cuda:0"
 max_seq_len = 256
 
 os.makedirs(f"{data_dir}/model_activations_{model_name}_{max_seq_len}", exist_ok=True)
 
 # %%
 
-model = HookedTransformer.from_pretrained("google/gemma-2-9b", device=device)
+model = AutoModelForCausalLM.from_pretrained(
+    "google/gemma-2-9b", 
+    device_map=device, 
+    torch_dtype=torch.bfloat16,
+    attn_implementation='eager')
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-9b")
 
 # %%
 
 # Important to ensure correct token is at the correct position, either at the text_length position or at the end of the sequence
-tokenizer = model.tokenizer
 tokenizer.truncation_side='left'
 tokenizer.padding_side='right'
 
 layer = 20
-hook_name = f"blocks.{layer}.hook_resid_post"
 
 # %%
 
@@ -50,7 +55,7 @@ dataset_names = glob.glob("data/cleaned_data/*.csv")
 random.shuffle(dataset_names)
 
 for dataset_name in dataset_names:
-    file_path = f"{data_dir}/model_activations_{model_name}_{max_seq_len}/{dataset_name.split('/')[-1].split('.')[0]}_{hook_name}.pt"
+    file_path = f"{data_dir}/model_activations_{model_name}_{max_seq_len}/{dataset_name.split('/')[-1].split('.')[0]}_layer_{layer}.pt"
     if os.path.exists(file_path):
         print(f"Skipping {dataset_name} because activations already exist")
         continue
@@ -65,7 +70,7 @@ for dataset_name in dataset_names:
 
     print(f"Generating activations for {dataset_short_name} (no existing activations)")
 
-    batch_size = 1
+    batch_size = 16
     all_activations = []
     bar = tqdm(range(0, len(text), batch_size))
     for i in bar:
@@ -73,12 +78,13 @@ for dataset_name in dataset_names:
         batch_lengths = text_lengths[i:i+batch_size]
         batch = tokenizer(batch_text, padding='max_length', truncation=True, max_length=max_seq_len, return_tensors="pt",)
         batch = batch.to(device)
-        logits, cache = model.run_with_cache(batch["input_ids"], names_filter=hook_name)
+        res = model.forward(batch["input_ids"], output_hidden_states=True)
+        activations = res.hidden_states[layer + 1]
         for j, length in enumerate(batch_lengths):
-            activations = cache[hook_name][:, :].cpu()[0]
+            batch_activations = activations[j].cpu()
             actual_length = min(length, max_seq_len)
-            activations[actual_length:] = 0
-            all_activations.append(activations)
+            batch_activations[actual_length:] = 0
+            all_activations.append(batch_activations)
         bar.set_description(f"{len(all_activations)}")
 
     torch.save(torch.stack(all_activations), file_path)
