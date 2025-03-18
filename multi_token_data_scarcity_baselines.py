@@ -133,9 +133,9 @@ def train_attn_probing(X_train, X_test, y_train, y_test, l2_lambda = 0):
         "train_auc": train_auc,
         "val_auc": best_val_auc,
         "test_auc": test_auc,
-        "best_output_vector": best_output_vector,
-        "best_attn_vector": best_attn_vector,
-        "best_bias": best_bias
+        "best_output_vector": best_output_vector.detach().cpu(),
+        "best_attn_vector": best_attn_vector.detach().cpu(),
+        "best_bias": best_bias.detach().cpu()
     }
     return metrics
 
@@ -145,8 +145,8 @@ def train_attn_probing_on_model_acts(dataset, layer, num_train=None):
 
     size = dataset_sizes[dataset]
     if num_train is None:
-        num_train = min(size-100, 1024)
-    num_test = size - num_train
+        num_train = min(size-102, 1024)
+    num_test = size - num_train - 2
     y = get_yvals(dataset)
     train_indices, test_indices = get_train_test_indices(y, num_train, num_test, pos_ratio=0.5, seed=42)
 
@@ -164,7 +164,7 @@ def train_attn_probing_on_model_acts(dataset, layer, num_train=None):
 
 
 all_metrics = []
-global_num_train = None
+global_num_train = 103
 for dataset in datasets:
     metrics = train_attn_probing_on_model_acts(dataset, layer, global_num_train)
     all_metrics.append(metrics)

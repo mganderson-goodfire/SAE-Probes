@@ -48,9 +48,9 @@ global_num_train = args.num_train
 for dataset in datasets:
     # Skip if dataset is too small
     if global_num_train is None:
-        num_train = min(dataset_sizes[dataset]-100, 1024)
+        num_train = min(dataset_sizes[dataset]-102, 1024)
     else:
-        num_train = min(global_num_train, dataset_sizes[dataset]-100)
+        num_train = min(global_num_train, dataset_sizes[dataset]-102)
 
     # Load model activations
     try:
@@ -62,7 +62,7 @@ for dataset in datasets:
 
     # Get labels and train/test split
     y = get_yvals(dataset)
-    num_test = dataset_sizes[dataset] - num_train
+    num_test = dataset_sizes[dataset] - num_train - 2
     train_indices, test_indices = get_train_test_indices(y, num_train, num_test, pos_ratio=0.5, seed=42)
 
     # Process activations through SAE in batches
