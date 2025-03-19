@@ -1,23 +1,59 @@
 # %%
 import os
 from sae_bench.sae_bench_utils import general_utils
-from sae_bench.custom_saes.run_all_evals_dictionary_learning_saes import MODEL_CONFIGS, get_all_hf_repo_autoencoders
+from sae_bench.custom_saes.run_all_evals_dictionary_learning_saes import MODEL_CONFIGS, snapshot_download
 from sae_bench.custom_saes.run_all_evals_dictionary_learning_saes import load_dictionary_learning_sae
 import torch
 from collections import defaultdict
 import json
 from pathlib import Path
 
+
+def get_all_hf_repo_autoencoders(
+    repo_id: str, download_location: str = "downloaded_saes"
+) -> list[str]:
+    download_location = os.path.join(download_location, repo_id.replace("/", "_"))
+    config_dir = snapshot_download(
+        repo_id,
+        allow_patterns=["*.json"],
+        local_dir=download_location,
+        force_download=False,
+    )
+
+    config_locations = []
+
+    for root, _, files in os.walk(config_dir):
+        for file in files:
+            if file.endswith(".json"):
+                config_locations.append(os.path.join(root, file))
+
+    repo_locations = []
+
+    for config in config_locations:
+        if "config.json" in config:
+            repo_location = config.split(f"{download_location}/")[1].split("/config.json")[
+                0
+            ]
+            repo_locations.append(repo_location)
+
+    return repo_locations
+
+
 def get_gemma_2_2b_sae_ids(layer):
     assert layer == 12
 
     repo_ids = ["canrager/saebench_gemma-2-2b_width-2pow14_date-0107", "adamkarvonen/temp"]
     model_name = "gemma-2-2b"
-    exclude_keywords = ["checkpoints", "eval_results.json", "random_seed_eval_results", "random_seeds_google_gemma-2-2b_top_k", "topk-finetune", "finetune"]
+    exclude_keywords = ["checkpoints"]
     include_keywords = []
 
     all_sae_locations = []
     for repo_id in repo_ids:
+        if "adamkarvonen" in repo_id:
+            include_keywords_local = ["old_relu_google_gemma-2-2b_standard"]
+        else:
+            include_keywords_local = include_keywords
+
         print(f"\n\n\nEvaluating {model_name} with {repo_id}\n\n\n")
 
         llm_batch_size = MODEL_CONFIGS[model_name]["batch_size"]
@@ -28,7 +64,7 @@ def get_gemma_2_2b_sae_ids(layer):
         sae_locations = get_all_hf_repo_autoencoders(repo_id)
 
         sae_locations = general_utils.filter_keywords(
-            sae_locations, exclude_keywords=exclude_keywords, include_keywords=include_keywords
+            sae_locations, exclude_keywords=exclude_keywords, include_keywords=include_keywords_local
         )
 
 
@@ -83,3 +119,6 @@ def load_gemma_2_2b_sae(sae_location):
         device="cpu",
         dtype=torch.float32,
     )
+# %%
+get_gemma_2_2b_sae_ids(12)
+# %%
