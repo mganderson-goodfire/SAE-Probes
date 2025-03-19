@@ -164,7 +164,7 @@ def train_attn_probing_on_model_acts(dataset, layer, num_train=None):
 
 
 all_metrics = []
-global_num_train = 103
+global_num_train = 100
 for dataset in datasets:
     metrics = train_attn_probing_on_model_acts(dataset, layer, global_num_train)
     all_metrics.append(metrics)

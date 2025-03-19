@@ -24,8 +24,8 @@ data_dir = "/mnt/sdc/jengels/data"
 
 # %%
 
-model_name = "gemma-2-9b"
-device = "cuda:0"
+model_name = "gemma-2-2b"
+device = "cuda:1"
 max_seq_len = 256
 
 os.makedirs(f"{data_dir}/model_activations_{model_name}_{max_seq_len}", exist_ok=True)
@@ -33,11 +33,11 @@ os.makedirs(f"{data_dir}/model_activations_{model_name}_{max_seq_len}", exist_ok
 # %%
 
 model = AutoModelForCausalLM.from_pretrained(
-    "google/gemma-2-9b", 
+    "google/gemma-2-2b", 
     device_map=device, 
     torch_dtype=torch.bfloat16,
     attn_implementation='eager')
-tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-9b")
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b")
 
 # %%
 
@@ -45,7 +45,7 @@ tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-9b")
 tokenizer.truncation_side='left'
 tokenizer.padding_side='right'
 
-layer = 20
+layer = 12
 
 # %%
 

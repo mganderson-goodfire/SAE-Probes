@@ -107,6 +107,46 @@ def get_gemma_2_2b_sae_ids_largest_l0(layer):
 
     return filtered_locations
 
+def get_sae_ids_closest_to_target_l0(layer, target_l0=200):
+    """
+    Filter SAE locations to keep only those with L0 values closest to target_l0 for each base path.
+    
+    Args:
+        layer: Layer number to get SAEs for
+        target_l0: Target L0 value to optimize for
+        
+    Returns:
+        List of filtered (repo_id, model_name, loc, l0) tuples
+    """
+    all_sae_locations = get_gemma_2_2b_sae_ids(layer)
+    
+    # Group SAE locations by their base path (everything except the last part)
+    base_paths = defaultdict(list)
+    for repo_id, model_name, loc, l0 in all_sae_locations:
+        # Split path and group by everything except last component
+        path_parts = loc.split('/')
+        base = '/'.join(path_parts[:-1])
+        base_paths[base].append((repo_id, model_name, loc, l0))
+
+    filtered_locations = []
+    for base, locations in base_paths.items():
+        if len(locations) == 1:
+            filtered_locations.extend(locations)
+            continue
+            
+        best_distance_to_target_l0 = float("inf")
+        best_loc = None
+        for repo_id, model_name, loc, l0 in locations:
+            distance_to_target_l0 = abs(l0 - target_l0)
+            if distance_to_target_l0 < best_distance_to_target_l0:
+                best_distance_to_target_l0 = distance_to_target_l0
+                best_loc = (repo_id, model_name, loc, l0)
+
+        if best_loc:
+            filtered_locations.append(best_loc)
+
+    return filtered_locations
+
 def load_gemma_2_2b_sae(sae_location):
       
     repo_id, model_name, sae_location, l0 = sae_location
@@ -119,6 +159,3 @@ def load_gemma_2_2b_sae(sae_location):
         device="cpu",
         dtype=torch.float32,
     )
-# %%
-get_gemma_2_2b_sae_ids(12)
-# %%

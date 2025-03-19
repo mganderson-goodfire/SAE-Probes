@@ -1,8 +1,9 @@
 # %%
 import torch
-from utils_data import get_numbered_binary_tags, get_dataset_sizes, get_yvals, get_train_test_indices
+from utils_data import get_numbered_binary_tags, get_dataset_sizes, get_yvals, get_train_test_indices, is_notebook
 from utils_sae import load_gemma_2_9b_sae
 from utils_training import train_aggregated_probe_on_acts
+from handle_sae_bench_saes import *
 import os
 from tqdm import tqdm
 import pandas as pd
@@ -17,15 +18,20 @@ os.environ["OMP_NUM_THREADS"] = "8"
 warnings.simplefilter("ignore", category=ConvergenceWarning)
 torch.set_grad_enabled(False)
 
-model_name = "gemma-2-9b"
 max_seq_len = 256
-layer = 20
 device = "cuda:1"
 data_dir = "/mnt/sdc/jengels/data"
 
 # Load SAE
-sae_id = "layer_20/width_16k/average_l0_68"
-sae = load_gemma_2_9b_sae(sae_id).to(device)
+model_name = "gemma-2-2b"
+layer = 12
+sae_ids = get_sae_ids_closest_to_target_l0(layer, 100)
+
+# Load SAE
+# model_name = "gemma-2-9b"
+# layer = 20
+# sae_id = "layer_20/width_16k/average_l0_68"
+# sae = load_gemma_2_9b_sae(sae_id).to(device)
 
 # Get datasets
 datasets = get_numbered_binary_tags()
@@ -33,17 +39,29 @@ dataset_sizes = get_dataset_sizes()
 
 # %%
 
-import argparse
+if not is_notebook:
+    import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--num_train", type=int)
-args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num_train", type=int)
+    parser.add_argument("--sae_id", type=str)
+    args = parser.parse_args()
+
+    if args.sae_id is None:
+        assert model_name == "gemma-2-2b"
+        sae_id = sae_ids[0]
+        sae = load_gemma_2_2b_sae(sae_id).to(device)
+
+    global_num_train = args.num_train
+else:
+    sae_id = 0
+    sae = load_gemma_2_2b_sae(sae_ids[sae_id]).to(device)
+    global_num_train = 100
 
 # %%
 
 # Create results dataframe
 results = []
-global_num_train = args.num_train
 
 for dataset in datasets:
     # Skip if dataset is too small
@@ -54,9 +72,11 @@ for dataset in datasets:
 
     # Load model activations
     try:
-        X_tensor = torch.load(f"{data_dir}/model_activations_{model_name}_{max_seq_len}/{dataset}_layer_{layer}.pt", weights_only=True)
+        file_path = f"{data_dir}/model_activations_{model_name}_{max_seq_len}/{dataset}_layer_{layer}.pt"
+        print(f"Loading {file_path}")
+        X_tensor = torch.load(file_path, weights_only=True)
     except Exception as e:
-        # print(f"Error loading {dataset}.{layer}.hook_resid_post.pt: {e}")
+        print(f"Error loading {file_path}: {e}")
         continue
 
 
@@ -104,7 +124,6 @@ for dataset in datasets:
 # %%
 
 import pickle as pkl
-
 with open(f"results/multi_token_data_scarcity_sae_layer20_numtrain{global_num_train}.pkl", "wb") as f:
     pkl.dump(results, f)
 
