@@ -6,6 +6,7 @@ import warnings
 from tqdm import tqdm
 import random
 from sklearn.exceptions import ConvergenceWarning
+from handle_sae_bench_saes import get_sae_ids_closest_to_target_l0
 from utils_data import (
     get_dataset_sizes, 
     get_numbered_binary_tags, 
@@ -150,12 +151,17 @@ def get_sae_paths_scarcity(dataset, layer, sae_id, reg_type, num_train, model_na
 
 def save_with_sae_scarcity(layer, sae, sae_id, model_name, device, reg_type):
     """Generate and save SAE activations for data scarcity setting"""
-    train_sizes = get_training_sizes()
-    
+
+    # train_sizes = get_training_sizes()
+
+    # TODO: Fix
+    train_sizes = [100, 1024]
+
     for dataset in datasets:
         for num_train in train_sizes:
-            if num_train > dataset_sizes[dataset] - 100:
-                continue
+            num_train = min(num_train, dataset_sizes[dataset] - 102)
+            # if num_train > dataset_sizes[dataset] - 100:
+            #     continue
                 
             paths = get_sae_paths_scarcity(dataset, layer, sae_id, reg_type, num_train, model_name)
             train_path, test_path, y_train_path, y_test_path = paths["train_path"], paths["test_path"], paths["y_train_path"], paths["y_test_path"]
@@ -265,6 +271,10 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
     for layer in layers:
         sae_ids = layer_to_sae_ids(layer, model_name)
         
+        # TODO: Fix
+        if model_name == "gemma-2-2b":
+            sae_ids = get_sae_ids_closest_to_target_l0(layer, 100)
+
         if randomize_order:
             random.shuffle(sae_ids)
         
@@ -297,30 +307,25 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
             
             elif setting == "scarcity":
                 # Check data scarcity setting
-                train_sizes = get_training_sizes()
+                # TODO: Fix
+                # train_sizes = get_training_sizes()
+                train_sizes = [100, 1024]
                 for dataset in datasets:
                     for num_train in train_sizes:
-                        if num_train > dataset_sizes[dataset] - 100:
-                            continue
                         paths = get_sae_paths_scarcity(dataset, layer, sae_id, reg_type, num_train, model_name)
                         if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
                                                               paths["y_train_path"], paths["y_test_path"]]):
                             print(f"Missing data for dataset {dataset}, num_train {num_train}")
-                            missing_data = True
-                            break
-                    if missing_data:
-                        break
-                
-                if missing_data:
-                    try:
-                        sae = sae_id_to_sae(sae_id, model_name, device)
-                        print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
-                        save_with_sae_scarcity(layer, sae, sae_id, model_name, device, reg_type)
-                        found_missing = True
-                        break
-                    except Exception as e:
-                        print(f"Error loading SAE {sae_id}: {e}")
-                        continue
+                            
+                            try:
+                                sae = sae_id_to_sae(sae_id, model_name, device)
+                                print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
+                                save_with_sae_scarcity(layer, sae, sae_id, model_name, device, reg_type)
+                                found_missing = True
+                                break
+                            except Exception as e:
+                                print(f"Error loading SAE {sae_id}: {e}")
+                                continue
             
             elif setting == "imbalance":
                 # Check class imbalance setting
@@ -331,21 +336,13 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
                         if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
                                                               paths["y_train_path"], paths["y_test_path"]]):
                             print(f"Missing data for dataset {dataset}, frac {frac}")
-                            missing_data = True
-                            break
-                    if missing_data:
-                        break
-                
-                if missing_data:
-                    try:
-                        sae = sae_id_to_sae(sae_id, model_name, device)
-                        print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
-                        save_with_sae_imbalance(layer, sae, sae_id, model_name, device, reg_type)
-                        found_missing = True
-                        break
-                    except Exception as e:
-                        print(f"Error loading SAE {sae_id}: {e}")
-                        continue
+                            try:
+                                sae = sae_id_to_sae(sae_id, model_name, device)
+                                print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
+                                save_with_sae_imbalance(layer, sae, sae_id, model_name, device, reg_type)
+                            except Exception as e:
+                                print(f"Error loading SAE {sae_id}: {e}")
+                                continue
        
         if found_missing:
             break
@@ -382,7 +379,7 @@ if __name__ == "__main__":
     
     # If specific model and setting are provided via command line, use those
     if model_name is not None and setting is not None:
-        process_model_setting(model_name, setting, device, reg_type, binarize)
+        process_model_setting(model_name, setting, device, reg_type, binarize, randomize_order)
         exit(0)
 
     # Otherwise, loop through all models and settings

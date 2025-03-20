@@ -10,7 +10,8 @@ import os
 
 dataset_sizes = get_dataset_sizes()
 datasets = get_numbered_binary_tags()
-methods = {'logreg': find_best_reg, 'pca': find_best_pcareg, 'knn': find_best_knn, 'xgboost': find_best_xgboost, 'mlp': find_best_mlp}
+# methods = {'logreg': find_best_reg, 'pca': find_best_pcareg, 'knn': find_best_knn, 'xgboost': find_best_xgboost, 'mlp': find_best_mlp}
+methods = {'logreg': find_best_reg}
 
 
 '''
@@ -38,7 +39,7 @@ def run_baseline_dataset_layer(layer, numbered_dataset, method_name, model_name 
     
 
 def run_all_baseline_normal(model_name = 'gemma-2-9b'):
-    shuffled_datasets = get_datasets().copy()
+    shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
     for method_name in methods.keys():
         for layer in get_layers(model_name):
@@ -80,9 +81,10 @@ def run_baseline_scarcity(num_train, numbered_dataset, method_name, model_name =
     if os.path.exists(savepath):
         return None
     size = dataset_sizes[numbered_dataset]
-    if num_train > size - 100:
-        # we dont have enough test examples
-        return 
+    # if num_train > size - 100:
+    #     # we dont have enough test examples
+    #     return 
+    num_train = min(num_train, size - 102)
     X_train, y_train, X_test, y_test = get_xy_traintest(num_train, numbered_dataset, layer, model_name = model_name)
     # Run method and get metrics
     method = methods[method_name]
@@ -98,9 +100,10 @@ def run_baseline_scarcity(num_train, numbered_dataset, method_name, model_name =
 
 def run_all_baseline_scarcity(model_name = 'gemma-2-9b', layer = 20):
     assert layer in get_layers(model_name)
-    shuffled_datasets = get_datasets().copy()
+    shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
-    train_sizes = get_training_sizes()
+    # train_sizes = get_training_sizes()
+    train_sizes = [100, 1024]
     for method_name in methods.keys():
         for train in train_sizes:
             for dataset in shuffled_datasets:
@@ -111,7 +114,8 @@ def run_all_baseline_scarcity(model_name = 'gemma-2-9b', layer = 20):
 def coalesce_all_scarcity(model_name = 'gemma-2-9b', layer = 20):
     # takes individual csvs and makes it into one big csv
     all_results = []
-    train_sizes = get_training_sizes()
+    # train_sizes = get_training_sizes()
+    train_sizes = [100, 1024]
     
     # Create directories if they don't exist
     dataset_path = f'data/baseline_results_{model_name}/scarcity/by_dataset'
@@ -518,16 +522,19 @@ if __name__ == '__main__':
     Each run_all file can be run in parallel instances using a 
     bash script to considerably speed up the runs.
     '''
-    run_all_baseline_normal('gemma-2-9b') # runs baseline probes in standard conditions on 4 evenly spaced layers
-    coalesce_all_baseline_normal(model_name = 'gemma-2-9b')
+    # run_all_baseline_normal('gemma-2-9b') # runs baseline probes in standard conditions on 4 evenly spaced layers
+    # coalesce_all_baseline_normal(model_name = 'gemma-2-9b')
 
-    run_all_baseline_scarcity('gemma-2-9b', layer = 20)
-    coalesce_all_scarcity('gemma-2-9b', layer = 20)
+    # run_all_baseline_scarcity('gemma-2-9b', layer = 20)
+    # coalesce_all_scarcity('gemma-2-9b', layer = 20)
 
-    run_all_baseline_class_imbalance('gemma-2-9b', layer =20)
-    coalesce_all_imbalance('gemma-2-9b', layer = 20)
+    # run_all_baseline_class_imbalance('gemma-2-9b', layer =20)
+    # coalesce_all_imbalance('gemma-2-9b', layer = 20)
 
-    run_all_baseline_corrupt('gemma-2-9b', layer = 20)
-    coalesce_all_corrupt('gemma-2-9b', layer = 20)
+    # run_all_baseline_corrupt('gemma-2-9b', layer = 20)
+    # coalesce_all_corrupt('gemma-2-9b', layer = 20)
 
-    run_datasets_OOD('gemma-2-9b', runsae = True, layer = 20, translation=False)
+    # run_datasets_OOD('gemma-2-9b', runsae = True, layer = 20, translation=False)
+
+    run_all_baseline_scarcity('gemma-2-2b', layer = 12)
+    coalesce_all_scarcity('gemma-2-2b', layer = 12)

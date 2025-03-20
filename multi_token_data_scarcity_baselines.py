@@ -18,15 +18,17 @@ import pickle as pkl
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
 
-model_name = "gemma-2-9b"
+model_name = "gemma-2-2b"
 max_seq_len = 256
-layer = 20
+layer = 12
 device = "cuda:1"
 data_dir = "/mnt/sdc/jengels/data"
 
 # Get datasets
 datasets = get_numbered_binary_tags()
 dataset_sizes = get_dataset_sizes()
+
+training_sizes = [100, 1024]
 
 # %%
 
@@ -139,42 +141,41 @@ def train_attn_probing(X_train, X_test, y_train, y_test, l2_lambda = 0):
     }
     return metrics
 
-def train_attn_probing_on_model_acts(dataset, layer, num_train=None):
+def train_attn_probing_on_model_acts(dataset, layer):
 
     X_tensor = torch.load(f"{data_dir}/model_activations_{model_name}_{max_seq_len}/{dataset}_layer_{layer}.pt", weights_only=True).float()
 
     size = dataset_sizes[dataset]
-    if num_train is None:
-        num_train = min(size-102, 1024)
-    num_test = size - num_train - 2
-    y = get_yvals(dataset)
-    train_indices, test_indices = get_train_test_indices(y, num_train, num_test, pos_ratio=0.5, seed=42)
 
-    y_train = y[train_indices]
-    y_test = y[test_indices]
+    all_metrics = []
+    for target_num_train in training_sizes:
+        num_train = min(target_num_train, size-102)
+        num_test = size - num_train - 2
+        y = get_yvals(dataset)
+        train_indices, test_indices = get_train_test_indices(y, num_train, num_test, pos_ratio=0.5, seed=42)
 
-    X_train_model = X_tensor[train_indices]
-    X_test_model = X_tensor[test_indices]
+        y_train = y[train_indices]
+        y_test = y[test_indices]
 
-    metrics = train_attn_probing(X_train_model, X_test_model, y_train, y_test)
-    metrics["dataset"] = dataset
-    metrics["layer"] = layer
+        X_train_model = X_tensor[train_indices]
+        X_test_model = X_tensor[test_indices]
 
-    return metrics
+        metrics = train_attn_probing(X_train_model, X_test_model, y_train, y_test)
+        metrics["dataset"] = dataset
+        metrics["layer"] = layer
+        metrics["num_train"] = target_num_train
+        metrics["actual_num_train"] = num_train
+        all_metrics.append(metrics)
+    return all_metrics
 
 
-all_metrics = []
-global_num_train = 100
+all_all_metrics = []
 for dataset in datasets:
-    metrics = train_attn_probing_on_model_acts(dataset, layer, global_num_train)
-    all_metrics.append(metrics)
+    all_metrics = train_attn_probing_on_model_acts(dataset, layer)
+    all_all_metrics.extend(all_metrics)
 
-if global_num_train is None:
-    with open("results/multi_token_baseline_layer20_numtrainall.pkl", "wb") as f:
-        pkl.dump(all_metrics, f)
-else:
-    with open(f"results/multi_token_baseline_layer20_numtrain{global_num_train}.pkl", "wb") as f:
-        pkl.dump(all_metrics, f)
+with open("results/multi_token_baseline_layer20_numtrainall.pkl", "wb") as f:
+    pkl.dump(all_all_metrics, f)
 
 
 

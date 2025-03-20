@@ -18,7 +18,7 @@ def process_metrics(file, model_name):
                     name = '_'.join(sae_id[2].split('/')[0].split('_')[1:])
                     l0 = sae_id[3]
                     rounded_l0 = round(float(l0))
-                    metric["sae_id"] = f"{name}"
+                    metric["sae_id"] = sae_id[2]
                     metric["sae_l0"] = rounded_l0
             return metrics
         except Exception as e:
@@ -80,3 +80,49 @@ for setting in ["normal", "scarcity", "class_imbalance", "label_noise"]:
     for model_name in ["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"]:
         process_setting(setting, model_name)
 # %%
+
+# Process multi token data scarcity sae results
+all_data = []
+files = glob.glob("data/multi_token_scarcity/*.pkl")
+for file in files:
+    with open(file, "rb") as f:
+        data = pickle.load(f)
+        for entry in data:
+            all_data.append({
+                "dataset": entry["dataset"],
+                "test_f1": entry["test_f1"],
+                "test_auc": entry["test_auc"],
+                "val_auc": entry["val_auc"],
+                "sae_id": entry["sae_id"][2],
+                "num_train": entry["num_train"],
+                "model_name": entry["sae_id"][1]
+                })
+            
+os.makedirs("results/sae_probes_gemma-2-2b/multi_token_scarcity_setting", exist_ok=True)
+df = pd.DataFrame(all_data)
+df.to_csv("results/sae_probes_gemma-2-2b/multi_token_scarcity_setting/all_metrics.csv", index=False)
+
+
+# %%
+
+# Process multi token data scarcity baseline results
+all_data = pickle.load(open("results/multi_token_baseline_layer20_numtrainall.pkl", "rb"))
+pandas_data = []
+for entry in all_data:
+    res = {
+        "dataset": entry["dataset"],
+        "test_auc": entry["test_auc"],
+        "val_auc": entry["val_auc"],
+        "num_train": entry["num_train"],
+        "model_name": "gemma-2-2b"
+    }
+
+    if res["num_train"] > 100:
+        res["num_train"] = 1024
+    pandas_data.append(res)
+os.makedirs("results/baseline_probes_gemma-2-2b/multi_token_scarcity_setting", exist_ok=True)
+df = pd.DataFrame(pandas_data)
+df.to_csv("results/baseline_probes_gemma-2-2b/multi_token_scarcity_setting/all_metrics.csv", index=False)
+
+# %%
+

@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import pickle as pkl
+from handle_sae_bench_saes import get_sae_ids_closest_to_target_l0
 from utils_data import get_dataset_sizes, get_numbered_binary_tags, get_training_sizes
 from utils_data import corrupt_ytrain, get_corrupt_frac, get_class_imbalance
 from utils_sae import layer_to_sae_ids, get_sae_layers
@@ -18,7 +19,8 @@ torch.set_grad_enabled(False)
 # Constants and datasets
 dataset_sizes = get_dataset_sizes()
 datasets = get_numbered_binary_tags()
-train_sizes = get_training_sizes()
+# train_sizes = get_training_sizes()
+train_sizes = [100, 1024]
 corrupt_fracs = get_corrupt_frac()
 fracs = get_class_imbalance()
 
@@ -241,33 +243,24 @@ def run_scarcity_baseline(dataset, layer, sae_id, reg_type, num_train, model_nam
 
 def run_scarcity_baselines(reg_type, model_name, target_sae_id=None):
     layers = get_sae_layers(model_name)
-    while True:
-        found_missing = False
-        random_order_datasets = random.sample(datasets, len(datasets))
-        for dataset in random_order_datasets:
-            random_order_layers = random.sample(layers, len(layers))
-            for layer in random_order_layers:
-                if target_sae_id is not None:
-                    sae_ids = [target_sae_id]
-                else:
-                    sae_ids = layer_to_sae_ids(layer, model_name)
-                random_order_sae_ids = random.sample(sae_ids, len(sae_ids))
-                for sae_id in random_order_sae_ids:
-                    for num_train in train_sizes:
-                        if num_train > dataset_sizes[dataset] - 100:
-                            continue
-                        paths = get_scarcity_sae_paths(dataset, layer, sae_id, reg_type, num_train, model_name)
-                        if not os.path.exists(paths["save_path"]) and os.path.exists(paths["train_path"]):
-                            found_missing = True
-                            print(f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, "
-                                  f"reg_type {reg_type}, num_train {num_train}")
-                            success = run_scarcity_baseline(dataset, layer, sae_id, reg_type, num_train, model_name)
-                            if not success:
-                                continue
-                            
-        if not found_missing:
-            print("All scarcity probes run. Exiting.")
-            break
+    random_order_datasets = random.sample(datasets, len(datasets))
+    for dataset in random_order_datasets:
+        random_order_layers = random.sample(layers, len(layers))
+        for layer in random_order_layers:
+            if target_sae_id is not None:
+                sae_ids = [target_sae_id]
+            else:
+                sae_ids = layer_to_sae_ids(layer, model_name)
+                if model_name == "gemma-2-2b":
+                    sae_ids = get_sae_ids_closest_to_target_l0(layer, 100)
+            random_order_sae_ids = random.sample(sae_ids, len(sae_ids))
+            for sae_id in random_order_sae_ids:
+                for num_train in train_sizes:
+                    paths = get_scarcity_sae_paths(dataset, layer, sae_id, reg_type, num_train, model_name)
+                    if not os.path.exists(paths["save_path"]) and os.path.exists(paths["train_path"]):
+                        print(f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, "
+                                f"reg_type {reg_type}, num_train {num_train}")
+                        run_scarcity_baseline(dataset, layer, sae_id, reg_type, num_train, model_name)
 
 # Label noise setting functions
 def get_noise_sae_paths(dataset, layer, sae_id, reg_type, corrupt_frac, model_name="gemma-2-9b"):

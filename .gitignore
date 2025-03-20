@@ -3,4 +3,4 @@ data/*
 !data/probing_datasets_MASTER.csv
 !data/consolidated_probing_gemma-2-9b/
 __pycache__
-downloaded_saes/*
+downloaded_saes
