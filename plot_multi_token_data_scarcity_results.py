@@ -126,6 +126,14 @@ plt.show()
 
 
 # %%
+
+# Sort all dataframes by dataset
+baseline_single_token_limited_data_test_auc = baseline_single_token_limited_data_test_auc.sort_values("dataset")
+sae_single_token_limited_data_test_auc = sae_single_token_limited_data_test_auc.sort_values("dataset")
+baseline_multi_token_limited_data_test_auc = baseline_multi_token_limited_data_test_auc.sort_values("dataset")
+sae_multi_token_test_auc_limited_data = sae_multi_token_test_auc_limited_data.sort_values("dataset")
+
+# %%
 # Create dataframe with results for each dataset
 results_df = pd.DataFrame({
     "Dataset": filtered_datasets,
@@ -206,6 +214,14 @@ plt.tight_layout()
 
 # %%
 
+# Sort all dataframes by dataset
+baseline_test_aucs_single_token = baseline_test_aucs_single_token.sort_values("dataset")
+sae_single_token_test_auc = sae_single_token_test_auc.sort_values("dataset") 
+baseline_multi_token_test_auc = baseline_multi_token_test_auc.sort_values("dataset")
+sae_multi_token_test_auc = sae_multi_token_test_auc.sort_values("dataset")
+
+
+# %%
 results_df = pd.DataFrame({
     "Dataset": filtered_datasets,
     f"Single Token (All Data) Test": baseline_test_aucs_single_token[filtered_mask]["test_auc"].values,
