@@ -5,13 +5,13 @@ This repository contains code to replicate experiments from our paper [*Are Spar
 
 1. **Generating Model and SAE Activations:**
    - Model activations for probing datasets are generated in `generate_model_activations.py`
-   - SAE activations are generated in `generate_sae_activations.py`
+   - SAE activations are generated in `generate_sae_activations.py`. Because of CUDA memory leakage, we rerun the script for every SAE, we do this in `save_sae_acts_and_train_probes.sh`, which should work if you just run it.
    - OOD regime activations are specifically generated in `plot_ood.ipynb`.
    - Mutli-token activations are specifically generated in `generate_model_and_sae_multi_token_acts.py`. Caution: this will take up a lot of memory (~1TB).
 
 2. **Training Probes:**
    - Baseline probes are trained using `run_baselines.py`. This script also includes additional functions for OOD experiments related to probe pruning and latent interpretability (see Sections 4.1 and 4.2 of the paper).
-   - SAE probes are trained using `train_sae_probes.py`. Sklearn regression is most efficient when run in a single thread, and then many of those threads can be run in parallel. We include an example of how to do this in `train_sae_probes.sh`.
+   - SAE probes are trained using `train_sae_probes.py`. Sklearn regression is most efficient when run in a single thread, and then many of those threads can be run in parallel. We do this in `save_sae_acts_and_train_probes.sh`.
    - Multi token SAE probes and baseline probes are trained using `run_multi_token_acts.py`.
    - Combining all results into csvs after they are done is done with `combine_results.py`.
 

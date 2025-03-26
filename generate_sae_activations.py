@@ -179,8 +179,8 @@ def save_with_sae_scarcity(layer, sae, sae_id, model_name, device):
 # Class imbalance setting functions
 def get_sae_paths_imbalance(dataset, layer, sae_id, frac, model_name="gemma-2-9b"):
     """Get paths for class imbalance setting"""
-    os.makedirs(f"data/sae_probes_{model_name}/class_imbalance", exist_ok=True)
-    os.makedirs(f"data/sae_activations_{model_name}/class_imbalance", exist_ok=True)
+    os.makedirs(f"data/sae_probes_{model_name}/class_imbalance_setting", exist_ok=True)
+    os.makedirs(f"data/sae_activations_{model_name}/class_imbalance_setting", exist_ok=True)
     
     if model_name == "gemma-2-9b":
         width = sae_id.split("/")[1]
@@ -196,10 +196,10 @@ def get_sae_paths_imbalance(dataset, layer, sae_id, frac, model_name="gemma-2-9b
     else:
         raise ValueError(f"Invalid model name: {model_name}")
         
-    train_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_X_train_sae.pt"
-    test_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_X_test_sae.pt"
-    y_train_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_y_train.pt"
-    y_test_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_y_test.pt"
+    train_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_X_train_sae.pt"
+    test_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_X_test_sae.pt"
+    y_train_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_y_train.pt"
+    y_test_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_y_test.pt"
     return {
         "train_path": train_path,
         "test_path": test_path,

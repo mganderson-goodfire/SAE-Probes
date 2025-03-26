@@ -44,20 +44,25 @@ def get_sae_paths(dataset, layer, sae_id, reg_type, binarize=False, model_name="
     if binarize:
         reg_type += "_binarized"
 
-    if len(extra_string) > 1:
+    if extra_string != "_":
         if not extra_string.endswith("_"):
-            extra_string = "_" + extra_string
-        if not reg_type.startswith("_"):
-            reg_type = "_" + reg_type
+            extra_string = extra_string + "_"
+        if not extra_string.startswith("_"):
+            extra_string = "_" + extra_string 
 
-    print(extra_string)
-    
+    extra_save_string = extra_string
+    extra_load_string = extra_string
+    save_setting = setting
+    load_setting = setting
+    if setting == "noise":
+        extra_load_string = "_"
+        load_setting = "normal"
 
-    save_path = f"data/sae_probes_{model_name}/{setting}_setting/{description_string}{extra_string}{reg_type}.pkl"
-    train_path = f"data/sae_activations_{model_name}/{setting}_setting/{description_string}{extra_string}X_train_sae.pt"
-    test_path = f"data/sae_activations_{model_name}/{setting}_setting/{description_string}{extra_string}X_test_sae.pt"
-    y_train_path = f"data/sae_activations_{model_name}/{setting}_setting/{description_string}{extra_string}y_train.pt"
-    y_test_path = f"data/sae_activations_{model_name}/{setting}_setting/{description_string}{extra_string}y_test.pt"
+    save_path = f"data/sae_probes_{model_name}/{save_setting}_setting/{description_string}{extra_save_string}{reg_type}.pkl"
+    train_path = f"data/sae_activations_{model_name}/{load_setting}_setting/{description_string}{extra_load_string}X_train_sae.pt"
+    test_path = f"data/sae_activations_{model_name}/{load_setting}_setting/{description_string}{extra_load_string}X_test_sae.pt"
+    y_train_path = f"data/sae_activations_{model_name}/{load_setting}_setting/{description_string}{extra_load_string}y_train.pt"
+    y_test_path = f"data/sae_activations_{model_name}/{load_setting}_setting/{description_string}{extra_load_string}y_test.pt"
     return {
         "save_path": save_path,
         "train_path": train_path,
@@ -94,15 +99,15 @@ def get_sae_paths_wrapper(dataset, layer, sae_id, reg_type, setting, model_name=
         assert corrupt_frac is not None
         assert num_train is None
         assert frac is None
-    elif setting == "imbalance":
-        extra_string = f"{frac}"
+    elif setting == "class_imbalance":
+        extra_string = f"frac{frac}"
         assert frac is not None
         assert num_train is None
         assert corrupt_frac is None
     else:
         raise ValueError(f"Invalid setting: {setting}")
     
-    return get_sae_paths(dataset, layer, sae_id, reg_type, binarize, model_name, extra_string=extra_string)
+    return get_sae_paths(dataset, layer, sae_id, reg_type, binarize, model_name, setting,extra_string=extra_string)
         
 
 def run_baseline(dataset, layer, sae_id, reg_type, setting, model_name="gemma-2-9b", binarize=False, num_train=None, corrupt_frac=None, frac=None):
@@ -183,7 +188,7 @@ def run_baseline(dataset, layer, sae_id, reg_type, setting, model_name="gemma-2-
             metrics['num_train'] = num_train
         elif setting == "noise":
             metrics['corrupt_frac'] = corrupt_frac
-        elif setting == "imbalance":
+        elif setting == "class_imbalance":
             metrics['frac'] = frac
 
         all_metrics.append(metrics)
@@ -213,6 +218,9 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                     sae_ids = [target_sae_id]
                 else:
                     sae_ids = layer_to_sae_ids(layer, model_name)
+                    if model_name == "gemma-2-9b" and setting != "normal":
+                        sae_ids = ["layer_20/width_16k/average_l0_408", "layer_20/width_131k/average_l0_276", "layer_20/width_1m/average_l0_193"]
+            
                 
                 if randomize_order:
                     loop_sae_ids = random.sample(sae_ids, len(sae_ids))
@@ -249,7 +257,7 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                                       f"reg_type {reg_type}, corrupt_frac {corrupt_frac}")
                                 success = run_baseline(dataset, layer, sae_id, reg_type, setting, model_name, corrupt_frac=corrupt_frac)
                                 assert success
-                    elif setting == "imbalance":
+                    elif setting == "class_imbalance":
                         for frac in fracs:
                             paths = get_sae_paths_wrapper(dataset, layer, sae_id, reg_type, setting, model_name, binarize, frac=frac)
                             if not os.path.exists(paths["save_path"]):
@@ -268,7 +276,7 @@ if __name__ == "__main__":
     parser.add_argument("--reg_type", type=str, required=True, choices=["l1", "l2"], 
                         help="Regularization type")
     parser.add_argument("--setting", type=str, required=True, 
-                        choices=["normal", "scarcity", "noise", "imbalance"], 
+                        choices=["normal", "scarcity", "noise", "class_imbalance"], 
                         help="Probe training setting (normal, scarcity, noise, or imbalance)")
     parser.add_argument("--model_name", type=str, required=True, 
                         choices=["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"], 
@@ -295,7 +303,7 @@ if __name__ == "__main__":
         print(f"Running label noise setting probes with {args.reg_type} regularization "
               f"for {args.model_name} model")
         run_baselines(args.reg_type, args.model_name, args.setting, args.binarize, args.target_sae_id, args.randomize_order)
-    elif args.setting == "imbalance":
+    elif args.setting == "class_imbalance":
         print(f"Running class imbalance setting probes with {args.reg_type} regularization "
               f"for {args.model_name} model")
         run_baselines(args.reg_type, args.model_name, args.setting, args.binarize, args.target_sae_id, args.randomize_order) 
