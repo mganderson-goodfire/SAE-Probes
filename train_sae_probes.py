@@ -78,7 +78,7 @@ def get_sorted_indices(X_train_sae, y_train):
 
 def get_sorted_indices_new(X_train_sae, y_train):
     # Divide each col by the average of the col
-    X_train_sae = X_train_sae / X_train_sae.mean(dim=0)
+    X_train_sae = X_train_sae / (X_train_sae.mean(dim=0) + 1e-6)
     X_train_diff = X_train_sae[y_train == 1].mean(dim=0) - X_train_sae[y_train == 0].mean(dim=0)
     sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
     return sorted_indices
