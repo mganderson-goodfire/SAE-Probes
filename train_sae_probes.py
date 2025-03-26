@@ -57,6 +57,18 @@ def get_normal_sae_paths(dataset, layer, sae_id, reg_type, binarize=False, model
         "y_test_path": y_test_path
     }
 
+def get_sorted_indices(X_train_sae, y_train):
+    X_train_diff = X_train_sae[y_train == 1].mean(dim=0) - X_train_sae[y_train == 0].mean(dim=0)
+    sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
+    return sorted_indices
+
+def get_sorted_indices_new(X_train_sae, y_train):
+    # Divide each col by the average of the col
+    X_train_sae = X_train_sae / X_train_sae.mean(dim=0)
+    X_train_diff = X_train_sae[y_train == 1].mean(dim=0) - X_train_sae[y_train == 0].mean(dim=0)
+    sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
+    return sorted_indices
+
 def run_normal_baseline(dataset, layer, sae_id, reg_type, binarize=False, model_name="gemma-2-9b"):
     paths = get_normal_sae_paths(dataset, layer, sae_id, reg_type, binarize, model_name)
     train_path, test_path, y_train_path, y_test_path = paths["train_path"], paths["test_path"], paths["y_train_path"], paths["y_test_path"]
@@ -74,8 +86,7 @@ def run_normal_baseline(dataset, layer, sae_id, reg_type, binarize=False, model_
     ks = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]  # For normal setting
     all_metrics = []
     # For now only implemented for classification
-    X_train_diff = X_train_sae[y_train == 1].mean(dim=0) - X_train_sae[y_train == 0].mean(dim=0)
-    sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
+    sorted_indices = get_sorted_indices_new(X_train_sae, y_train)
     
     for k in tqdm(ks):
         top_by_average_diff = sorted_indices[:k]
@@ -194,8 +205,7 @@ def run_scarcity_baseline(dataset, layer, sae_id, reg_type, num_train, model_nam
 
     ks = [16, 128]  # For scarcity setting
     all_metrics = []
-    X_train_diff = X_train_sae[y_train == 1].mean(dim=0) - X_train_sae[y_train == 0].mean(dim=0)
-    sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
+    sorted_indices = get_sorted_indices_new(X_train_sae, y_train)
     
     for k in tqdm(ks):
         top_by_average_diff = sorted_indices[:k]
@@ -317,8 +327,7 @@ def run_noise_baseline(dataset, layer, sae_id, reg_type, corrupt_frac, model_nam
 
     ks = [16, 128]  # For noise setting
     all_metrics = []
-    X_train_diff = X_train_sae[y_train == 1].mean(dim=0) - X_train_sae[y_train == 0].mean(dim=0)
-    sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
+    sorted_indices = get_sorted_indices_new(X_train_sae, y_train)
     
     for k in tqdm(ks):
         top_by_average_diff = sorted_indices[:k]
@@ -435,8 +444,7 @@ def run_imbalance_baseline(dataset, layer, sae_id, reg_type, frac, model_name="g
 
     ks = [16, 128]  # For imbalance setting
     all_metrics = []
-    X_train_diff = X_train_sae[y_train == 1].mean(dim=0) - X_train_sae[y_train == 0].mean(dim=0)
-    sorted_indices = torch.argsort(torch.abs(X_train_diff), descending=True)
+    sorted_indices = get_sorted_indices_new(X_train_sae, y_train)
     
     for k in tqdm(ks):
         top_by_average_diff = sorted_indices[:k]
