@@ -11,6 +11,15 @@ import pandas as pd
 def get_gemma_2_9b_sae_ids(layer):
     all_gemma_scope_saes = get_pretrained_saes_directory()["gemma-scope-9b-pt-res"].saes_map
     all_sae_ids = [sae_id for sae_id in all_gemma_scope_saes if sae_id.split("/")[0] == f"layer_{layer}"]
+
+    # If layer is not 20, we only keep the width_16k sae with the largest l0
+    if layer != 20:
+        all_sae_ids = [sae_id for sae_id in all_sae_ids if "width_16k" in sae_id]
+        l0s = [int(sae_id.split("/")[2].split("_")[-1]) for sae_id in all_sae_ids]
+        max_l0_index = np.argmax(l0s)
+        all_sae_ids = [all_sae_ids[max_l0_index]]
+        print(f"Only using the width_16k sae with the largest l0 for non-standard layer {layer}: {all_sae_ids}")
+
     return all_sae_ids
 
 def get_gemma_2_9b_sae_ids_largest_l0s(layer, width_restriction = ["16k", "131k", "1m"]):
@@ -166,6 +175,10 @@ def get_grammar_feature_examples():
 # print(f"y_test shape: {y_test.shape}")
 
     
+def get_sae_layers_extra(model_name):
+    assert model_name == "gemma-2-9b"
+    return [9, 20, 31, 41]
+
 def get_sae_layers(model_name):
     if model_name == "gemma-2-9b":
         return [20]

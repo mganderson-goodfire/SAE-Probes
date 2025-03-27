@@ -3,7 +3,7 @@ import numpy as np
 import pickle as pkl
 from utils_data import get_dataset_sizes, get_numbered_binary_tags, get_training_sizes
 from utils_data import corrupt_ytrain, get_corrupt_frac, get_class_imbalance
-from utils_sae import layer_to_sae_ids, get_sae_layers
+from utils_sae import get_sae_layers_extra, layer_to_sae_ids, get_sae_layers
 from tqdm import tqdm
 from utils_training import find_best_reg
 import os
@@ -54,7 +54,7 @@ def get_sae_paths(dataset, layer, sae_id, reg_type, binarize=False, model_name="
     extra_load_string = extra_string
     save_setting = setting
     load_setting = setting
-    if setting == "noise":
+    if setting == "label_noise":
         extra_load_string = "_"
         load_setting = "normal"
 
@@ -99,7 +99,7 @@ def get_sae_paths_wrapper(dataset, layer, sae_id, reg_type, setting, model_name=
         assert num_train is not None
         assert corrupt_frac is None
         assert frac is None
-    elif setting == "noise":
+    elif setting == "label_noise":
         extra_string = f"{corrupt_frac}"
         assert corrupt_frac is not None
         assert num_train is None
@@ -134,7 +134,7 @@ def run_baseline(dataset, layer, sae_id, reg_type, setting, model_name="gemma-2-
     y_test = load_activations(y_test_path)
 
     # Handle special cases for different settings
-    if setting == "noise":
+    if setting == "label_noise":
         y_train = corrupt_ytrain(y_train.numpy(), corrupt_frac)
 
     # Set k values based on setting
@@ -191,7 +191,7 @@ def run_baseline(dataset, layer, sae_id, reg_type, setting, model_name="gemma-2-
         # Add setting-specific metadata
         if setting == "scarcity":
             metrics['num_train'] = num_train
-        elif setting == "noise":
+        elif setting == "label_noise":
             metrics['corrupt_frac'] = corrupt_frac
         elif setting == "class_imbalance":
             metrics['frac'] = frac
@@ -207,6 +207,8 @@ def run_baseline(dataset, layer, sae_id, reg_type, setting, model_name="gemma-2-
 
 def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=None, randomize_order=False):
     layers = get_sae_layers(model_name)
+    if model_name == "gemma-2-9b" and setting == "normal":
+        layers = get_sae_layers_extra(model_name)
     while True:
         found_missing = False
         if randomize_order:
@@ -253,7 +255,7 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                                       f"reg_type {reg_type}, num_train {num_train}")
                                 success = run_baseline(dataset, layer, sae_id, reg_type, setting, model_name, num_train=num_train)
                                 assert success
-                    elif setting == "noise":
+                    elif setting == "label_noise":
                         for corrupt_frac in corrupt_fracs:
                             paths = get_sae_paths_wrapper(dataset, layer, sae_id, reg_type, setting, model_name, binarize, corrupt_frac=corrupt_frac)
                             if not os.path.exists(paths["save_path"]):
@@ -281,8 +283,8 @@ if __name__ == "__main__":
     parser.add_argument("--reg_type", type=str, required=True, choices=["l1", "l2"], 
                         help="Regularization type")
     parser.add_argument("--setting", type=str, required=True, 
-                        choices=["normal", "scarcity", "noise", "class_imbalance"], 
-                        help="Probe training setting (normal, scarcity, noise, or imbalance)")
+                        choices=["normal", "scarcity", "label_noise", "class_imbalance"], 
+                        help="Probe training setting (normal, scarcity, label_noise, or imbalance)")
     parser.add_argument("--model_name", type=str, required=True, 
                         choices=["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"], 
                         help="Model name")
@@ -304,7 +306,7 @@ if __name__ == "__main__":
         print(f"Running scarcity setting probes with {args.reg_type} regularization "
               f"for {args.model_name} model")
         run_baselines(args.reg_type, args.model_name, args.setting, args.binarize, args.target_sae_id, args.randomize_order)
-    elif args.setting == "noise":
+    elif args.setting == "label_noise":
         print(f"Running label noise setting probes with {args.reg_type} regularization "
               f"for {args.model_name} model")
         run_baselines(args.reg_type, args.model_name, args.setting, args.binarize, args.target_sae_id, args.randomize_order)

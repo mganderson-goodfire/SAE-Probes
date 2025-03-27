@@ -18,7 +18,8 @@ from utils_data import (
 from utils_sae import (
     layer_to_sae_ids, 
     sae_id_to_sae, 
-    get_sae_layers
+    get_sae_layers,
+    get_sae_layers_extra
 )
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
@@ -250,6 +251,8 @@ def process_model_setting(model_name, setting, device, randomize_order):
     print(f"Running SAE activation generation for {model_name} in {setting} setting")
     
     layers = get_sae_layers(model_name)
+    if model_name == "gemma-2-9b" and setting == "normal":
+        layers = get_sae_layers_extra(model_name)
     found_missing = False
     
     for layer in layers:
