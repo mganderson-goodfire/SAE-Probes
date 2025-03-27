@@ -7,6 +7,7 @@ from tqdm import tqdm
 import random
 from sklearn.exceptions import ConvergenceWarning
 from utils_data import (
+    get_OOD_datasets,
     get_dataset_sizes, 
     get_numbered_binary_tags, 
     get_xy_traintest, 
@@ -244,6 +245,69 @@ def save_with_sae_imbalance(layer, sae, sae_id, model_name, device):
             save_activations(y_test_path, torch.tensor(y_test))
 
 
+def save_with_sae_ood(layer, sae, sae_id, model_name, device):
+    """Generate and save SAE activations for OOD setting"""
+    for dataset in get_OOD_datasets():
+        paths = get_sae_paths_ood(dataset, layer, sae_id, model_name)
+        train_path, test_path, y_train_path, y_test_path = paths["train_path"], paths["test_path"], paths["y_train_path"], paths["y_test_path"]
+        
+        if all(os.path.exists(p) for p in [train_path, test_path, y_train_path, y_test_path]):
+            continue
+        
+        X_train, y_train, X_test, y_test = get_xy_traintest(1024, dataset, layer, model_name=model_name)
+        
+        batch_size = 128
+        X_train_sae = []
+        for i in range(0, len(X_train), batch_size):
+            batch = X_train[i:i+batch_size].to(device)
+            X_train_sae.append(sae.encode(batch).cpu())
+        X_train_sae = torch.cat(X_train_sae)
+
+        X_test_sae = []
+        for i in range(0, len(X_test), batch_size):
+            batch = X_test[i:i+batch_size].to(device)
+            X_test_sae.append(sae.encode(batch).cpu())
+        X_test_sae = torch.cat(X_test_sae)
+
+        save_activations(train_path, X_train_sae)
+        save_activations(test_path, X_test_sae)
+        save_activations(y_train_path, torch.tensor(y_train))
+        save_activations(y_test_path, torch.tensor(y_test))
+        
+        
+        
+        
+
+# %%
+# OOD setting functions
+def get_sae_paths_ood(dataset, layer, sae_id, model_name="gemma-2-9b"):
+    os.makedirs(f"data/sae_probes_{model_name}/ood_setting", exist_ok=True)
+    os.makedirs(f"data/sae_activations_{model_name}/ood_setting", exist_ok=True)
+
+    if model_name == "gemma-2-9b":
+        width = sae_id.split("/")[1]
+        l0 = sae_id.split("/")[2]
+        description_string = f"{dataset}_{layer}_{width}_{l0}"
+    elif model_name == "llama-3.1-8b":
+        description_string = f"{dataset}_{sae_id}"
+    elif model_name == "gemma-2-2b":
+        name = '_'.join(sae_id[2].split('/')[0].split('_')[1:])
+        l0 = sae_id[3]
+        rounded_l0 = round(float(l0))
+        description_string = f"{dataset}_{name}_{rounded_l0}"
+    else:
+        raise ValueError(f"Invalid model name: {model_name}")
+    
+    train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_X_train_sae.pt"
+    test_path = f"data/sae_activations_{model_name}/OOD_setting/{description_string}_X_test_sae.pt"
+    y_train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_y_train.pt"
+    y_test_path = f"data/sae_activations_{model_name}/OOD_setting/{description_string}_y_test.pt"
+    return {
+        "train_path": train_path,
+        "test_path": test_path,
+        "y_train_path": y_train_path,
+        "y_test_path": y_test_path
+    }
 
 # %%
 # Process SAEs for a specific model and setting
@@ -342,6 +406,33 @@ def process_model_setting(model_name, setting, device, randomize_order):
                     except Exception as e:
                         print(f"Error loading SAE {sae_id}: {e}")
                         continue
+
+            elif setting == "OOD":
+                # Check OOD setting
+                for dataset in get_OOD_datasets():
+                    paths = get_sae_paths_ood(dataset, layer, sae_id, model_name)
+                    if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
+                                                          paths["y_train_path"], paths["y_test_path"]]):
+                        print(f"Missing data for dataset {dataset}")
+                        missing_data = True
+                        break
+
+                    if missing_data:
+                        break
+                
+                if missing_data:
+                    try:
+                        sae = sae_id_to_sae(sae_id, model_name, device)
+                        print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
+                        save_with_sae_ood(layer, sae, sae_id, model_name, device)
+                        found_missing = True
+                        break
+                    except Exception as e:
+                        print(f"Error loading SAE {sae_id}: {e}")
+                        continue
+                
+            else:
+                raise ValueError(f"Invalid setting: {setting}")
        
         if found_missing:
             break
@@ -360,7 +451,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--model_name", type=str, default=None, choices=["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"])
     parser.add_argument("--setting", type=str, default=None, 
-                        choices=["normal", "scarcity", "imbalance"])
+                        choices=["normal", "scarcity", "imbalance", "OOD"])
     parser.add_argument("--randomize_order", action="store_true", help="Randomize the order of datasets and settings, useful for parallelizing")
 
     args = parser.parse_args()
@@ -370,7 +461,7 @@ if __name__ == "__main__":
     randomize_order = args.randomize_order
 
     model_names = ["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"]
-    settings = ["normal", "scarcity", "imbalance", "noise", "consolidated"]
+    settings = ["normal", "scarcity", "imbalance", "OOD"]
     
     # If specific model and setting are provided via command line, use those and only run a max of one sae
     # This helps with memory and parallelization

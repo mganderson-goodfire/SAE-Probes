@@ -59,6 +59,9 @@ def process_setting(setting, model_name):
     files = glob.glob(file_pattern)
     print(file_pattern)
     print(len(files))
+    if len(files) == 0:
+        return
+    
     all_metrics, bad_files = process_files(files, model_name)
     assert len(bad_files) == 0, f"Found {len(bad_files)} bad files in {setting} setting"
     
@@ -72,11 +75,10 @@ def process_setting(setting, model_name):
     print(f"Total records in {setting} setting: {len(df)}")
         
     
-    return df
 
 # %%
 
-for setting in ["normal", "scarcity", "class_imbalance", "label_noise"]:
+for setting in ["normal", "scarcity", "class_imbalance", "label_noise", "OOD"]:
     for model_name in ["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"]:
         process_setting(setting, model_name)
 # %%
