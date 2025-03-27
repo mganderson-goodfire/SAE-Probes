@@ -43,7 +43,7 @@ def load_activations(path):
 
 # %%
 # Normal setting functions
-def get_sae_paths_normal(dataset, layer, sae_id, reg_type, binarize=False, model_name="gemma-2-9b"):
+def get_sae_paths_normal(dataset, layer, sae_id, model_name="gemma-2-9b"):
     """Get paths for normal setting"""
     os.makedirs(f"data/sae_probes_{model_name}/normal_setting", exist_ok=True)
     os.makedirs(f"data/sae_activations_{model_name}/normal_setting", exist_ok=True)
@@ -61,27 +61,22 @@ def get_sae_paths_normal(dataset, layer, sae_id, reg_type, binarize=False, model
         description_string = f"{dataset}_{name}_{rounded_l0}"
     else:
         raise ValueError(f"Invalid model name: {model_name}")
-    
-    if binarize:
-        reg_type += "_binarized"
 
-    save_path = f"data/sae_probes_{model_name}/normal_setting/{description_string}_{reg_type}.pkl"
     train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_X_train_sae.pt"
     test_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_X_test_sae.pt"
     y_train_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_y_train.pt"
     y_test_path = f"data/sae_activations_{model_name}/normal_setting/{description_string}_y_test.pt"
     return {
-        "save_path": save_path,
         "train_path": train_path,
         "test_path": test_path,
         "y_train_path": y_train_path,
         "y_test_path": y_test_path
     }
 
-def save_with_sae_normal(layer, sae, sae_id, model_name, device, reg_type, binarize):
+def save_with_sae_normal(layer, sae, sae_id, model_name, device):
     """Generate and save SAE activations for normal setting"""
     for dataset in datasets:
-        paths = get_sae_paths_normal(dataset, layer, sae_id, reg_type, binarize, model_name)
+        paths = get_sae_paths_normal(dataset, layer, sae_id, model_name)
         train_path, test_path, y_train_path, y_test_path = paths["train_path"], paths["test_path"], paths["y_train_path"], paths["y_test_path"]
         
         all_paths_exist = all([os.path.exists(train_path), os.path.exists(test_path), os.path.exists(y_train_path), os.path.exists(y_test_path)])
@@ -112,7 +107,7 @@ def save_with_sae_normal(layer, sae, sae_id, model_name, device, reg_type, binar
 
 # %%
 # Data scarcity setting functions
-def get_sae_paths_scarcity(dataset, layer, sae_id, reg_type, num_train, model_name="gemma-2-9b"):
+def get_sae_paths_scarcity(dataset, layer, sae_id, num_train, model_name="gemma-2-9b"):
     """Get paths for data scarcity setting"""
     os.makedirs(f"data/sae_probes_{model_name}/scarcity_setting", exist_ok=True)
     os.makedirs(f"data/sae_activations_{model_name}/scarcity_setting", exist_ok=True)
@@ -131,24 +126,21 @@ def get_sae_paths_scarcity(dataset, layer, sae_id, reg_type, num_train, model_na
     else:
         raise ValueError(f"Invalid model name: {model_name}")
 
-    save_path = f"data/sae_probes_{model_name}/scarcity_setting/{description_string}_{reg_type}_{num_train}.pkl"
     train_path = f"data/sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_X_train_sae.pt"
     test_path = f"data/sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_X_test_sae.pt"
     y_train_path = f"data/sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_y_train.pt"
     y_test_path = f"data/sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_y_test.pt"
     
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     os.makedirs(os.path.dirname(train_path), exist_ok=True)
     
     return {
-        "save_path": save_path,
         "train_path": train_path,
         "test_path": test_path,
         "y_train_path": y_train_path,
         "y_test_path": y_test_path
     }
 
-def save_with_sae_scarcity(layer, sae, sae_id, model_name, device, reg_type):
+def save_with_sae_scarcity(layer, sae, sae_id, model_name, device):
     """Generate and save SAE activations for data scarcity setting"""
     train_sizes = get_training_sizes()
     
@@ -157,7 +149,7 @@ def save_with_sae_scarcity(layer, sae, sae_id, model_name, device, reg_type):
             if num_train > dataset_sizes[dataset] - 100:
                 continue
                 
-            paths = get_sae_paths_scarcity(dataset, layer, sae_id, reg_type, num_train, model_name)
+            paths = get_sae_paths_scarcity(dataset, layer, sae_id, num_train, model_name)
             train_path, test_path, y_train_path, y_test_path = paths["train_path"], paths["test_path"], paths["y_train_path"], paths["y_test_path"]
             
             if all(os.path.exists(p) for p in [train_path, test_path, y_train_path, y_test_path]):
@@ -185,10 +177,10 @@ def save_with_sae_scarcity(layer, sae, sae_id, model_name, device, reg_type):
 
 # %%
 # Class imbalance setting functions
-def get_sae_paths_imbalance(dataset, layer, sae_id, reg_type, frac, model_name="gemma-2-9b"):
+def get_sae_paths_imbalance(dataset, layer, sae_id, frac, model_name="gemma-2-9b"):
     """Get paths for class imbalance setting"""
-    os.makedirs(f"data/sae_probes_{model_name}/class_imbalance", exist_ok=True)
-    os.makedirs(f"data/sae_activations_{model_name}/class_imbalance", exist_ok=True)
+    os.makedirs(f"data/sae_probes_{model_name}/class_imbalance_setting", exist_ok=True)
+    os.makedirs(f"data/sae_activations_{model_name}/class_imbalance_setting", exist_ok=True)
     
     if model_name == "gemma-2-9b":
         width = sae_id.split("/")[1]
@@ -204,26 +196,24 @@ def get_sae_paths_imbalance(dataset, layer, sae_id, reg_type, frac, model_name="
     else:
         raise ValueError(f"Invalid model name: {model_name}")
         
-    save_path = f"data/sae_probes_{model_name}/class_imbalance/{description_string}_{reg_type}_frac{frac}.pkl"
-    train_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_X_train_sae.pt"
-    test_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_X_test_sae.pt"
-    y_train_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_y_train.pt"
-    y_test_path = f"data/sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_y_test.pt"
+    train_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_X_train_sae.pt"
+    test_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_X_test_sae.pt"
+    y_train_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_y_train.pt"
+    y_test_path = f"data/sae_activations_{model_name}/class_imbalance_setting/{description_string}_frac{frac}_y_test.pt"
     return {
-        "save_path": save_path,
         "train_path": train_path,
         "test_path": test_path,
         "y_train_path": y_train_path,
         "y_test_path": y_test_path
     }
 
-def save_with_sae_imbalance(layer, sae, sae_id, model_name, device, reg_type):
+def save_with_sae_imbalance(layer, sae, sae_id, model_name, device):
     """Generate and save SAE activations for class imbalance setting"""
     fracs = get_class_imbalance()
     
     for dataset in datasets:
         for frac in fracs:
-            paths = get_sae_paths_imbalance(dataset, layer, sae_id, reg_type, frac, model_name)
+            paths = get_sae_paths_imbalance(dataset, layer, sae_id, frac, model_name)
             train_path, test_path, y_train_path, y_test_path = paths["train_path"], paths["test_path"], paths["y_train_path"], paths["y_test_path"]
             
             if os.path.exists(train_path):
@@ -256,15 +246,18 @@ def save_with_sae_imbalance(layer, sae, sae_id, model_name, device, reg_type):
 
 # %%
 # Process SAEs for a specific model and setting
-def process_model_setting(model_name, setting, device, reg_type, binarize, randomize_order):
+def process_model_setting(model_name, setting, device, randomize_order):
     print(f"Running SAE activation generation for {model_name} in {setting} setting")
     
     layers = get_sae_layers(model_name)
     found_missing = False
     
     for layer in layers:
+
         sae_ids = layer_to_sae_ids(layer, model_name)
-        
+        if model_name == "gemma-2-9b" and setting != "normal":
+            sae_ids = ["layer_20/width_16k/average_l0_408", "layer_20/width_131k/average_l0_276", "layer_20/width_1m/average_l0_193"]
+            
         if randomize_order:
             random.shuffle(sae_ids)
         
@@ -277,7 +270,7 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
             if setting == "normal":
                 # Check normal setting
                 for dataset in datasets:
-                    paths = get_sae_paths_normal(dataset, layer, sae_id, reg_type, binarize, model_name)
+                    paths = get_sae_paths_normal(dataset, layer, sae_id, model_name)
                     if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
                                                           paths["y_train_path"], paths["y_test_path"]]):
                         print(f"Missing data for dataset {dataset}")
@@ -288,7 +281,7 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
                     try:
                         sae = sae_id_to_sae(sae_id, model_name, device)
                         print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
-                        save_with_sae_normal(layer, sae, sae_id, model_name, device, reg_type, binarize)
+                        save_with_sae_normal(layer, sae, sae_id, model_name, device)
                         found_missing = True
                         break
                     except Exception as e:
@@ -302,7 +295,7 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
                     for num_train in train_sizes:
                         if num_train > dataset_sizes[dataset] - 100:
                             continue
-                        paths = get_sae_paths_scarcity(dataset, layer, sae_id, reg_type, num_train, model_name)
+                        paths = get_sae_paths_scarcity(dataset, layer, sae_id, num_train, model_name)
                         if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
                                                               paths["y_train_path"], paths["y_test_path"]]):
                             print(f"Missing data for dataset {dataset}, num_train {num_train}")
@@ -315,7 +308,7 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
                     try:
                         sae = sae_id_to_sae(sae_id, model_name, device)
                         print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
-                        save_with_sae_scarcity(layer, sae, sae_id, model_name, device, reg_type)
+                        save_with_sae_scarcity(layer, sae, sae_id, model_name, device)
                         found_missing = True
                         break
                     except Exception as e:
@@ -327,7 +320,7 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
                 fracs = get_class_imbalance()
                 for dataset in datasets:
                     for frac in fracs:
-                        paths = get_sae_paths_imbalance(dataset, layer, sae_id, reg_type, frac, model_name)
+                        paths = get_sae_paths_imbalance(dataset, layer, sae_id, frac, model_name)
                         if not all(os.path.exists(p) for p in [paths["train_path"], paths["test_path"], 
                                                               paths["y_train_path"], paths["y_test_path"]]):
                             print(f"Missing data for dataset {dataset}, frac {frac}")
@@ -340,7 +333,7 @@ def process_model_setting(model_name, setting, device, reg_type, binarize, rando
                     try:
                         sae = sae_id_to_sae(sae_id, model_name, device)
                         print(f"Generating SAE data for layer {layer}, SAE {sae_id}")
-                        save_with_sae_imbalance(layer, sae, sae_id, model_name, device, reg_type)
+                        save_with_sae_imbalance(layer, sae, sae_id, model_name, device)
                         found_missing = True
                         break
                     except Exception as e:
@@ -365,24 +358,21 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, default=None, choices=["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"])
     parser.add_argument("--setting", type=str, default=None, 
                         choices=["normal", "scarcity", "imbalance"])
-    parser.add_argument("--binarize", action="store_true")
-    parser.add_argument("--reg_type", type=str, choices=["l1", "l2"], default="l1")
     parser.add_argument("--randomize_order", action="store_true", help="Randomize the order of datasets and settings, useful for parallelizing")
 
     args = parser.parse_args()
     device = args.device
     model_name = args.model_name
     setting = args.setting
-    binarize = args.binarize
-    reg_type = args.reg_type
     randomize_order = args.randomize_order
 
     model_names = ["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"]
     settings = ["normal", "scarcity", "imbalance", "noise", "consolidated"]
     
-    # If specific model and setting are provided via command line, use those
+    # If specific model and setting are provided via command line, use those and only run a max of one sae
+    # This helps with memory and parallelization
     if model_name is not None and setting is not None:
-        process_model_setting(model_name, setting, device, reg_type, binarize)
+        process_model_setting(model_name, setting, device, randomize_order)
         exit(0)
 
     # Otherwise, loop through all models and settings
@@ -395,5 +385,5 @@ if __name__ == "__main__":
             print(f"{'='*50}\n")
             do_loop = True
             while do_loop:
-                do_loop = process_model_setting(curr_model_name, curr_setting, device, reg_type, binarize, randomize_order)
+                do_loop = process_model_setting(curr_model_name, curr_setting, device, randomize_order)
 
