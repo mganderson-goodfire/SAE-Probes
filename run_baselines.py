@@ -443,32 +443,48 @@ def ood_pruning(dataset = '66_living-room'):
     # section 
     fname = f'results/sae_probes_gemma-2-9b/OOD/OOD_latents/{dataset}/{dataset}_latent_aucs.csv'
     df = pd.read_csv(fname)
-    df = df.sort_values('Relevance')
+    
     X_train, y_train, X_test, y_test, top_by_average_diff = get_xy_OOD_sae(dataset, k = 8, model_name = 'gemma-2-9b', layer = 20, return_indices = True, num_train = 1500)
     
     results = []
     bar = tqdm(range(1, 9))
+    
+    # Sort dataframes by both relevance metrics
+    df_llm = df.sort_values('Relevance')
+    df_human = df.sort_values('Human Relevance')
+    
     for k in bar:
-        # Get top k latents by relevance
-        top_k_latents = df.head(k)['latent'].values
+        result = {'k': k}
         
-        # Find indices of these latents in top_by_average_diff
-        indices = [i for i, x in enumerate(top_by_average_diff) if x.item() in top_k_latents]
-        
-        # Index X_train and X_test with these indices
-        X_train_filtered = X_train[:, indices]
-        X_test_filtered = X_test[:, indices]
-        
-        # Run find_best_reg
-        metrics = find_best_reg(
-            X_train=X_train_filtered,
-            y_train=y_train,
-            X_test=X_test_filtered,
-            y_test=y_test,
-            penalty="l1"
-        )
-        results.append({'k': k, 'ood_auc': metrics['test_auc'], 'val_auc': metrics['val_auc']})
-        bar.set_postfix(results[-1])
+        for relevance_type in ['llm', 'human']:
+            df_sorted = df_llm if relevance_type == 'llm' else df_human
+            
+            # Get top k latents
+            top_k_latents = df_sorted.head(k)['latent'].values
+            
+            # Find indices of these latents in top_by_average_diff
+            indices = [i for i, x in enumerate(top_by_average_diff) if x.item() in top_k_latents]
+            
+            # Index X_train and X_test with these indices
+            X_train_filtered = X_train[:, indices]
+            X_test_filtered = X_test[:, indices]
+            
+            # Run find_best_reg
+            metrics = find_best_reg(
+                X_train=X_train_filtered,
+                y_train=y_train,
+                X_test=X_test_filtered,
+                y_test=y_test,
+                penalty="l1"
+            )
+            
+            # Store results
+            result[f'ood_auc_{relevance_type}'] = metrics['test_auc']
+            result[f'val_auc_{relevance_type}'] = metrics['val_auc']
+            
+        results.append(result)
+        bar.set_postfix(result)
+
     # Save results to CSV
     results_df = pd.DataFrame(results)
     results_df.to_csv(f'results/sae_probes_gemma-2-9b/OOD/OOD_latents/{dataset}/{dataset}_pruned.csv', index=False)
@@ -518,16 +534,19 @@ if __name__ == '__main__':
     Each run_all file can be run in parallel instances using a 
     bash script to considerably speed up the runs.
     '''
-    run_all_baseline_normal('gemma-2-9b') # runs baseline probes in standard conditions on 4 evenly spaced layers
-    coalesce_all_baseline_normal(model_name = 'gemma-2-9b')
+    # run_all_baseline_normal('gemma-2-9b') # runs baseline probes in standard conditions on 4 evenly spaced layers
+    # coalesce_all_baseline_normal(model_name = 'gemma-2-9b')
 
-    run_all_baseline_scarcity('gemma-2-9b', layer = 20)
-    coalesce_all_scarcity('gemma-2-9b', layer = 20)
+    # run_all_baseline_scarcity('gemma-2-9b', layer = 20)
+    # coalesce_all_scarcity('gemma-2-9b', layer = 20)
 
-    run_all_baseline_class_imbalance('gemma-2-9b', layer =20)
-    coalesce_all_imbalance('gemma-2-9b', layer = 20)
+    # run_all_baseline_class_imbalance('gemma-2-9b', layer =20)
+    # coalesce_all_imbalance('gemma-2-9b', layer = 20)
 
-    run_all_baseline_corrupt('gemma-2-9b', layer = 20)
-    coalesce_all_corrupt('gemma-2-9b', layer = 20)
+    # run_all_baseline_corrupt('gemma-2-9b', layer = 20)
+    # coalesce_all_corrupt('gemma-2-9b', layer = 20)
 
-    run_datasets_OOD('gemma-2-9b', runsae = True, layer = 20, translation=False)
+    # run_datasets_OOD('gemma-2-9b', runsae = True, layer = 20, translation=False)
+    datasets = ['90_glue_qnli', '7_hist_fig_ispolitician', '66_living-room']
+    for dataset in datasets:
+        ood_pruning(dataset)

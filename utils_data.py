@@ -17,6 +17,9 @@ try:
 except:
     is_notebook = False
 
+BASEPATH = '../SAE-Probing'
+# we use this to point towards a directory where we host model activations
+
 # DATA UTILS
 def get_binary_df():
     # returns a list of the data tags for all binary classification datasets
@@ -35,7 +38,7 @@ def read_dataset_df(dataset_tag):
     # Find the dataset save name for the given dataset tag
     dataset_save_name = df[df['Dataset Tag'] == dataset_tag]['Dataset save name'].iloc[0]
     # Read and return the dataset from the save location
-    return pd.read_csv(f'data/{dataset_save_name}')
+    return pd.read_csv(f'{BASEPATH}/data/{dataset_save_name}')
 
 def read_numbered_dataset_df(numbered_dataset_tag):
     #expects hte form {number}_{dataset_tag}
@@ -52,9 +55,9 @@ def get_yvals(numbered_dataset_tag):
 def get_xvals(numbered_dataset_tag, layer, model_name = 'gemma-2-9b'):
     #assert layer in [9,20,31,41,'embed'], 'invalid layer provided'
     if layer  == 'embed':
-        fname = f'data/model_activations_{model_name}/{numbered_dataset_tag}_hook_embed.pt'
+        fname = f'{BASEPATH}/data/model_activations_{model_name}/{numbered_dataset_tag}_hook_embed.pt'
     else:
-        fname = f'data/model_activations_{model_name}/{numbered_dataset_tag}_blocks.{layer}.hook_resid_post.pt'
+        fname = f'{BASEPATH}/data/model_activations_{model_name}/{numbered_dataset_tag}_blocks.{layer}.hook_resid_post.pt'
     activations = torch.load(fname, weights_only = False)
     #print(f"Shape of {numbered_dataset_tag} at layer {layer}: {activations.shape}")
     return activations
@@ -189,8 +192,8 @@ def get_OOD_datasets(translation = True):
     return datasets
 
 def get_xy_OOD(dataset, model_name = 'gemma-2-9b', layer = 20):
-    X = torch.load(f'data/model_activations_{model_name}_OOD/{dataset}_OOD_blocks.{layer}.hook_resid_post.pt', weights_only = False)
-    df = pd.read_csv(f'data/OOD data/{dataset}_OOD.csv')
+    X = torch.load(f'{BASEPATH}/data/model_activations_{model_name}_OOD/{dataset}_OOD_blocks.{layer}.hook_resid_post.pt', weights_only = False)
+    df = pd.read_csv(f'{BASEPATH}/data/OOD data/{dataset}_OOD.csv')
     le = LabelEncoder()
     y = le.fit_transform(df['target'].values)
     return X,y
@@ -223,7 +226,7 @@ def get_glue_traintest(toget = 'ensemble', model_name = 'gemma-2-9b', layer = 20
 def get_datasets(model_name = 'llama-3.1-8b'):
     # Get all files in the directory
     dataset_sizes = get_dataset_sizes()
-    files = os.listdir(f'data/model_activations_{model_name}')
+    files = os.listdir(f'{BASEPATH}/data/model_activations_{model_name}')
     
     # Filter for files containing 'blocks'
     block_files = [f for f in files if 'blocks' in f]

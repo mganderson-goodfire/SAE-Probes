@@ -8,6 +8,9 @@ import torch
 import numpy as np
 import pandas as pd
 
+BASEPATH = '../SAE-Probing'
+# we use this to point towards a directory where we host model activations
+
 def get_gemma_2_9b_sae_ids(layer):
     all_gemma_scope_saes = get_pretrained_saes_directory()["gemma-scope-9b-pt-res"].saes_map
     all_sae_ids = [sae_id for sae_id in all_gemma_scope_saes if sae_id.split("/")[0] == f"layer_{layer}"]
@@ -70,8 +73,8 @@ def sae_id_to_sae(sae_id, model_name, device):
 def get_xy_OOD_sae(dataset, k = 128, model_name = 'gemma-2-9b', layer = 20, return_indices = False, num_train = 1024):
     _, y_test = get_xy_OOD(dataset)
     _, y_train = get_xyvals(dataset, layer = layer, model_name = model_name, MAX_AMT = 1500)
-    X_test = torch.load(f'data/sae_activations_{model_name}_OOD/{dataset}_OOD.pt', weights_only=False).to_dense().cpu()
-    X_train = torch.load(f'data/sae_activations_{model_name}/{dataset}.pt', weights_only=True).to_dense().cpu()
+    X_test = torch.load(f'{BASEPATH}/data/sae_activations_{model_name}_OOD/{dataset}_OOD.pt', weights_only=False).to_dense().cpu()
+    X_train = torch.load(f'{BASEPATH}/data/sae_activations_{model_name}/{dataset}.pt', weights_only=True).to_dense().cpu()
     # Get indices for each class
     pos_indices = np.where(y_train == 1)[0]
     neg_indices = np.where(y_train == 0)[0]
