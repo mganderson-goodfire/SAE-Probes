@@ -6,3 +6,5 @@ data/*
 __pycache__
 downloaded_saes/*
 plots
+
+raw_text_datasets/*
