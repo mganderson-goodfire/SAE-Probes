@@ -17,7 +17,7 @@ try:
 except:
     is_notebook = False
 
-BASEPATH = '../SAE-Probing'
+BASEPATH = '.'
 # we use this to point towards a directory where we host model activations
 
 # DATA UTILS

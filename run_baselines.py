@@ -547,6 +547,10 @@ if __name__ == '__main__':
     # coalesce_all_corrupt('gemma-2-9b', layer = 20)
 
     # run_datasets_OOD('gemma-2-9b', runsae = True, layer = 20, translation=False)
-    datasets = ['90_glue_qnli', '7_hist_fig_ispolitician', '66_living-room']
-    for dataset in datasets:
-        ood_pruning(dataset)
+    
+    # OOD pruning experiment - commented out to allow general baseline training
+    # This specialized analysis requires pre-computed relevance scores and OOD activations
+    # Uncomment only when running the specific interpretability analysis from the paper
+    # datasets = ['90_glue_qnli', '7_hist_fig_ispolitician', '66_living-room']
+    # for dataset in datasets:
+    #     ood_pruning(dataset)

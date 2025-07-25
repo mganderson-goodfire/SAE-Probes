@@ -2,29 +2,29 @@
 
 for i in {1..100}
 do
-    python3 generate_sae_activations.py --model_name gemma-2-9b --setting normal --device cuda:1
+    python3 generate_sae_activations.py --model_name gemma-2-9b --setting normal --device mps --randomize_order
 done
 
 
 for i in {1..10}
 do
-    python3 generate_sae_activations.py --model_name gemma-2-9b --setting scarcity --device cuda:1
+    python3 generate_sae_activations.py --model_name gemma-2-9b --setting scarcity --device mps --randomize_order
 done
 
 for i in {1..10}
 do
-    python3 generate_sae_activations.py --model_name gemma-2-9b --setting imbalance --device cuda:1
+    python3 generate_sae_activations.py --model_name gemma-2-9b --setting imbalance --device mps --randomize_order
 done
 
 
 for i in {1..10}
 do
-    python3 generate_sae_activations.py --model_name gemma-2-9b --setting OOD --device cuda:1
+    python3 generate_sae_activations.py --model_name gemma-2-9b --setting OOD --device mps --randomize_order
 done
 
 
 
-# ---- Train SAE probes ----
+# # ---- Train SAE probes ----
 
 for i in {1..20}
 do

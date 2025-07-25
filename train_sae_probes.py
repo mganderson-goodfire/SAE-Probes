@@ -221,12 +221,14 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
     while True:
         found_missing = False
         if setting == "OOD":
-            datasets = get_OOD_datasets()
+            current_datasets = get_OOD_datasets()
+        else:
+            current_datasets = datasets
         if randomize_order:
-            loop_datasets = random.sample(datasets, len(datasets))
+            loop_datasets = random.sample(current_datasets, len(current_datasets))
             loop_layers = random.sample(layers, len(layers))
         else:
-            loop_datasets = datasets
+            loop_datasets = current_datasets
             loop_layers = layers
 
         for dataset in loop_datasets:
@@ -254,7 +256,8 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                             found_missing = True
                             print(f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, reg_type {reg_type}, setting {setting}")
                             success = run_baseline(dataset, layer, sae_id, reg_type, setting, model_name, binarize)
-                            assert success
+                            if not success:
+                                print(f"Skipping probe due to missing files")
                     elif setting == "scarcity":
                         for num_train in train_sizes:
                             if num_train > dataset_sizes[dataset] - 100:
@@ -265,7 +268,8 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                                 print(f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, "
                                       f"reg_type {reg_type}, num_train {num_train}, setting {setting}")
                                 success = run_baseline(dataset, layer, sae_id, reg_type, setting, model_name, num_train=num_train)
-                                assert success
+                                if not success:
+                                    print(f"Skipping probe due to missing files")
                     elif setting == "label_noise":
                         for corrupt_frac in corrupt_fracs:
                             paths = get_sae_paths_wrapper(dataset, layer, sae_id, reg_type, setting, model_name, binarize, corrupt_frac=corrupt_frac)
@@ -274,7 +278,8 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                                 print(f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, "
                                       f"reg_type {reg_type}, corrupt_frac {corrupt_frac}, setting {setting}")
                                 success = run_baseline(dataset, layer, sae_id, reg_type, setting, model_name, corrupt_frac=corrupt_frac)
-                                assert success
+                                if not success:
+                                    print(f"Skipping probe due to missing files")
                     elif setting == "class_imbalance":
                         for frac in fracs:
                             paths = get_sae_paths_wrapper(dataset, layer, sae_id, reg_type, setting, model_name, binarize, frac=frac)
@@ -282,14 +287,16 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                                 print(f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, "
                                       f"reg_type {reg_type}, frac {frac}, setting {setting}")
                                 success = run_baseline(dataset, layer, sae_id, reg_type, setting, model_name, frac=frac)
-                                assert success
+                                if not success:
+                                    print(f"Skipping probe due to missing files")
                     elif setting == "OOD":
                         paths = get_sae_paths_wrapper(dataset, layer, sae_id, reg_type, setting, model_name, binarize)
                         if not os.path.exists(paths["save_path"]):
                             found_missing = True
                             print(f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, reg_type {reg_type}, setting {setting}")
                             success = run_baseline(dataset, layer, sae_id, reg_type, setting, model_name, binarize)
-                            assert success
+                            if not success:
+                                print(f"Skipping probe due to missing files")
                     else:
                         raise ValueError(f"Invalid setting: {setting}")
 

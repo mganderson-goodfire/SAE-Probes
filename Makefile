@@ -42,7 +42,7 @@ setup: ## Initial setup: extract pre-computed data
 	@echo "Setup complete!"
 
 # ==================== ACTIVATION GENERATION (GPU REQUIRED) ====================
-.PHONY: generate-activations generate-model-acts generate-sae-acts generate-sae-acts-all
+.PHONY: generate-activations generate-model-acts generate-sae-acts generate-sae-acts-all generate-sae-acts-optimized
 
 generate-activations: generate-model-acts generate-sae-acts ## Generate all activations (GPU required)
 
@@ -52,11 +52,11 @@ generate-model-acts: ## Generate model activations for all datasets
 
 generate-sae-acts: ## Generate SAE activations for specific setting
 	@echo "Generating SAE activations for $(MODEL) with setting $(SETTING)..."
-	$(PYTHON) generate_sae_activations.py --model $(MODEL) --setting $(SETTING)
+	$(PYTHON) generate_sae_activations.py --model $(MODEL) --setting $(SETTING) --device mps --model_name gemma-2-9b
 
-generate-sae-acts-all: ## Run full SAE generation pipeline (very long)
-	@echo "Running full SAE generation pipeline..."
-	bash save_sae_acts_and_train_probes.sh
+generate-sae-acts-optimized: ## Run optimized SAE generation (much faster)
+	@echo "Running optimized SAE generation pipeline..."
+	bash save_sae_acts_optimized.sh
 
 # Multi-token generation (separate due to high memory requirements)
 generate-multi-token: ## Generate multi-token activations (high memory)
@@ -64,29 +64,29 @@ generate-multi-token: ## Generate multi-token activations (high memory)
 	$(PYTHON) generate_model_and_sae_multi_token_acts.py
 
 # ==================== PROBE TRAINING (CPU FRIENDLY) ====================
-.PHONY: train-probes train-baselines train-sae-probes train-all-probes
+.PHONY: train-probes train-baselines train-sae-probes train-all-sae-probes train-all-probes
 
-train-probes: train-baselines train-sae-probes ## Train all probes
+train-probes: train-baselines train-all-sae-probes ## Train all probes
 
 train-baselines: ## Train baseline probes (logreg, knn, xgboost, etc.)
 	@echo "Training baseline probes for $(MODEL) with setting $(SETTING)..."
 	$(PYTHON) run_baselines.py --model $(MODEL) --setting $(SETTING)
 
-train-sae-probes: ## Train SAE probes 
+train-sae-probes: ## Train SAE probes for specific setting
 	@echo "Training SAE probes for $(MODEL) with setting $(SETTING)..."
-	$(PYTHON) train_sae_probes.py --model $(MODEL) --setting OOD --reg_type l2
+	$(PYTHON) train_sae_probes.py --model_name $(MODEL) --setting $(SETTING) --reg_type l1
+
+train-all-sae-probes: ## Train SAE probes for all experimental settings
+	@echo "Training SAE probes for all settings..."
+	$(MAKE) train-sae-probes SETTING=normal
+	$(MAKE) train-sae-probes SETTING=scarcity
+	$(MAKE) train-sae-probes SETTING=class_imbalance
+	$(MAKE) train-sae-probes SETTING=OOD
 
 train-multi-token: ## Train multi-token probes
 	@echo "Training multi-token probes..."
 	$(PYTHON) run_multi_token_acts.py
 
-# Parallel training for specific datasets
-train-dataset-range: ## Train probes for dataset range (use START=100 END=110)
-	@for i in $$(seq $(START) $(END)); do \
-		echo "Training dataset $$i..."; \
-		$(PYTHON) train_sae_probes.py --dataset $$i & \
-	done; \
-	wait
 
 # ==================== RESULTS ANALYSIS ====================
 .PHONY: combine-results analyze
@@ -199,9 +199,6 @@ train-baseline-method: ## Train specific baseline method (use METHOD=logreg)
 train-layer: ## Train probes for specific layer (use LAYER=20)
 	$(PYTHON) run_baselines.py --model $(MODEL) --layer $(LAYER)
 
-# Run specific dataset
-train-single-dataset: ## Train probes for single dataset (use DATASET=100_news_fake)
-	$(PYTHON) train_sae_probes.py --dataset $(DATASET)
 
 # ==================== MONITORING ====================
 .PHONY: check-gpu watch-training
