@@ -11,72 +11,98 @@ The reproduction workflow has three main stages:
 
 ## Hardware Requirements
 
-### M3 MacBook Pro Capabilities
-- ✅ Can run: Probe training, results analysis, visualization
-- ❌ Cannot run: Model/SAE activation generation (requires CUDA GPUs)
-- Memory: Sufficient for probe training and analysis tasks
+### M3 MacBook Pro Capabilities  
+- ✅ Can run: ALL steps including SAE activation generation (using MPS)
+- ✅ Model activations: Pre-computed and available
+- ✅ SAE activation generation: Works for 16k and 131k width SAEs
+- ⚠️ Limited by: Memory for 1M width SAEs (need 64GB+ RAM)
+- ✅ Probe training, results analysis, visualization: All work perfectly
 
-### GPU Cluster Requirements
-- CUDA-capable GPUs with 18GB+ VRAM for 9B parameter models
-- Multiple GPUs recommended for parallel activation generation
+### GPU Cluster Requirements (Optional)
+- Only needed for: 1M width SAEs or faster processing
+- Model activation generation already done (included in repo)
 
 ## Reproduction Steps
 
-### Option 1: Full Reproduction (Requires GPU Access)
+### Option 1: Full Reproduction on M3 MacBook Pro (Recommended)
 
 #### Step 1: Environment Setup
 ```bash
-# Create virtual environment
+# Using uv (recommended)
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+
+# Or traditional pip
 python -m venv probing
 source probing/bin/activate
-
-# Install dependencies
 pip install transformer_lens sae_lens transformers datasets torch xgboost sae_bench scikit-learn natsort
 ```
 
-#### Step 2: Generate Model Activations (GPU Required)
+#### Step 2: Extract Pre-computed Model Activations
 ```bash
-# On GPU cluster
-python generate_model_activations.py
-
-# This generates activations for:
-# - gemma-2-9b (layers 20, 31, 41)
-# - llama-3.1-8b (layers 15, 23, 31) 
-# - gemma-2-2b (layers 12, 18, 25)
+# Model activations are already generated and included
+cd data/
+tar -xzf model_activations_gemma-2-9b.tar.gz
+tar -xzf model_activations_gemma-2-9b_OOD.tar.gz
 ```
 
-#### Step 3: Generate SAE Activations (GPU Required)
+#### Step 3: Generate SAE Activations (Works on M3!)
 ```bash
-# Run the orchestration script (uses cuda:1)
-bash save_sae_acts_and_train_probes.sh
+# Use optimized script - 10-100x faster
+make generate-sae-acts-optimized
 
-# Or run individually:
-python generate_sae_activations.py --setting normal --model gemma-2-9b
+# This will generate activations for:
+# - 16k width SAEs ✅
+# - 131k width SAEs ✅  
+# - 1M width SAEs ❌ (skip due to memory)
 ```
 
-#### Step 4: Train Probes (Can Run on M3)
-```bash
-# Baseline probes
-python run_baselines.py --setting normal --model gemma-2-9b
+#### Step 4: Train Probes for All Experimental Settings
 
-# SAE probes (already handled by orchestration script)
-python train_sae_probes.py --setting normal --model gemma-2-9b
+**Critical for Paper Reproduction**: The paper evaluates 5 challenging experimental conditions. Both baseline and SAE probes must be trained for each setting to enable comparison.
+
+```bash
+# OPTION 1: Train everything at once
+make train-probes  # Trains all baselines + all SAE probes
+
+# OPTION 2: Train by category
+make train-all-baselines     # All 5 baseline settings
+make train-all-sae-probes    # All 5 SAE settings
+
+# OPTION 3: Train individually by setting
+make train-baselines SETTING=normal MODEL=gemma-2-9b
+make train-baselines SETTING=scarcity MODEL=gemma-2-9b
+make train-baselines SETTING=class_imbalance MODEL=gemma-2-9b
+make train-baselines SETTING=label_noise MODEL=gemma-2-9b
+make train-baselines SETTING=OOD MODEL=gemma-2-9b
+
+# Then SAE probes for same settings...
+make train-sae-probes SETTING=normal MODEL=gemma-2-9b
+# ... etc
 ```
 
-#### Step 5: Combine Results (Can Run on M3)
+**The 5 Experimental Settings**:
+1. **`normal`**: Standard training conditions (baseline comparison)
+2. **`scarcity`**: Limited training data (10, 100 samples) 
+3. **`class_imbalance`**: 90% samples from one class
+4. **`label_noise`**: 20% corrupted training labels
+5. **`OOD`**: Out-of-distribution test data (covariate shift)
+
+**Paper's Central Question**: Do SAEs help in challenging conditions where baseline methods struggle?
+
+#### Step 5: Combine Results
 ```bash
-python combine_results.py
+make combine-results
 ```
 
-#### Step 6: Generate Visualizations (Can Run on M3)
+#### Step 6: Generate Visualizations
 ```bash
-# Run Jupyter notebooks for plots
-jupyter notebook plot_normal.ipynb
-jupyter notebook plot_combined.ipynb
-jupyter notebook plot_ood.ipynb
+make visualize
+# Or run individual notebooks
 ```
 
-### Option 2: Partial Reproduction Using Pre-computed Activations (M3-Friendly)
+### Option 2: Quick Visualization Using Pre-computed Results
 
 Since the repository includes pre-computed results, you can skip the GPU-intensive steps:
 

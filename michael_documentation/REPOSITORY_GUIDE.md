@@ -111,8 +111,24 @@ The repository is organized into three main logical sections:
 #### `combine_results.py`
 - **Purpose**: Aggregates individual probe results into consolidated CSVs
 - **Input**: Pickle files from probe training scripts
+- **Process**: **No training** - pure data aggregation and flattening
 - **Output**: Organized CSV files by model and setting
 - **Usage**: Run after all probe training is complete
+
+**Data Structure Details**:
+- **Pickle Input**: Each `.pkl` file contains a list of ~10 dictionaries (one per k value)
+- **Dictionary Format**:
+  ```python
+  {
+      'test_f1': 0.85, 'test_acc': 0.87, 'test_auc': 0.92, 'val_auc': 0.89,
+      'k': 1,  # Number of top SAE features used
+      'dataset': '100_news_fake', 'layer': 20,
+      'sae_id': 'layer_20/width_131k/average_l0_276',
+      'reg_type': 'l1', 'binarize': False
+  }
+  ```
+- **CSV Output**: One row per dictionary, ready for visualization
+- **File Location**: `results/sae_probes_{model_name}/{setting}_setting/all_metrics.csv`
 
 ### Visualization
 

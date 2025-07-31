@@ -239,7 +239,8 @@ def run_baselines(reg_type, model_name, setting, binarize=False, target_sae_id=N
                 else:
                     sae_ids = layer_to_sae_ids(layer, model_name)
                     if model_name == "gemma-2-9b" and setting != "normal":
-                        sae_ids = ["layer_20/width_16k/average_l0_408", "layer_20/width_131k/average_l0_276", "layer_20/width_1m/average_l0_193"]
+                        # Skip 1M width SAE to avoid memory issues on M3 MacBook Pro
+                        sae_ids = ["layer_20/width_16k/average_l0_408", "layer_20/width_131k/average_l0_276"]
             
                 
                 if randomize_order:

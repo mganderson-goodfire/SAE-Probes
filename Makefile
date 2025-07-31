@@ -64,13 +64,31 @@ generate-multi-token: ## Generate multi-token activations (high memory)
 	$(PYTHON) generate_model_and_sae_multi_token_acts.py
 
 # ==================== PROBE TRAINING (CPU FRIENDLY) ====================
-.PHONY: train-probes train-baselines train-sae-probes train-all-sae-probes train-all-probes
+.PHONY: train-probes train-baselines train-all-baselines train-baseline-probes train-sae-probes train-all-sae-probes train-all-probes
 
-train-probes: train-baselines train-all-sae-probes ## Train all probes
+train-probes: train-all-baselines train-all-sae-probes ## Train all probes
 
-train-baselines: ## Train baseline probes (logreg, knn, xgboost, etc.)
+train-baselines: ## Train baseline probes for specific setting
 	@echo "Training baseline probes for $(MODEL) with setting $(SETTING)..."
 	$(PYTHON) run_baselines.py --model $(MODEL) --setting $(SETTING)
+
+train-all-baselines: ## Train baseline probes for all experimental settings
+	@echo "Training baseline probes for all settings..."
+	$(MAKE) train-baselines SETTING=normal
+	$(MAKE) train-baselines SETTING=scarcity
+	$(MAKE) train-baselines SETTING=class_imbalance
+	$(MAKE) train-baselines SETTING=label_noise
+	$(MAKE) train-baselines SETTING=OOD
+
+train-baseline-probes: ## Train all baseline (non-SAE) probes for paper reproduction
+	@echo "Training all baseline probes needed for paper reproduction..."
+	@echo "This includes: LogReg, KNN, XGBoost, etc. on raw model activations"
+	@echo "Settings: normal, scarcity, class_imbalance, label_noise, OOD"
+	@echo "Estimated time: 2-3 hours"
+	@echo ""
+	$(MAKE) train-all-baselines MODEL=$(MODEL)
+	@echo ""
+	@echo "All baseline probes trained! Ready for SAE comparison."
 
 train-sae-probes: ## Train SAE probes for specific setting
 	@echo "Training SAE probes for $(MODEL) with setting $(SETTING)..."

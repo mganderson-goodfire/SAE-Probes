@@ -38,7 +38,7 @@ def run_baseline_dataset_layer(layer, numbered_dataset, method_name, model_name 
     
 
 def run_all_baseline_normal(model_name = 'gemma-2-9b'):
-    shuffled_datasets = get_datasets().copy()
+    shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
     for method_name in methods.keys():
         for layer in get_layers(model_name):
@@ -98,7 +98,7 @@ def run_baseline_scarcity(num_train, numbered_dataset, method_name, model_name =
 
 def run_all_baseline_scarcity(model_name = 'gemma-2-9b', layer = 20):
     assert layer in get_layers(model_name)
-    shuffled_datasets = get_datasets().copy()
+    shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
     train_sizes = get_training_sizes()
     for method_name in methods.keys():
@@ -174,7 +174,7 @@ def run_baseline_class_imbalance(dataset_frac, numbered_dataset, method_name, mo
 
 def run_all_baseline_class_imbalance(model_name = 'gemma-2-9b', layer = 20):
     assert layer in get_layers(model_name)
-    shuffled_datasets = get_datasets().copy()
+    shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_class_imbalance()
     i = 0
@@ -247,7 +247,7 @@ def run_baseline_corrupt(corrupt_frac, numbered_dataset, method_name, model_name
 
 def run_all_baseline_corrupt(model_name = 'gemma-2-9b', layer = 20):
     assert layer in get_layers(model_name)
-    shuffled_datasets = get_datasets().copy()
+    shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_corrupt_frac()
     for method_name in ['logreg']:
@@ -529,28 +529,37 @@ def examine_glue_classifier():
 
 
 if __name__ == '__main__':
-    '''
-    Note: we do not recommend you run the functions like this.
-    Each run_all file can be run in parallel instances using a 
-    bash script to considerably speed up the runs.
-    '''
-    # run_all_baseline_normal('gemma-2-9b') # runs baseline probes in standard conditions on 4 evenly spaced layers
-    # coalesce_all_baseline_normal(model_name = 'gemma-2-9b')
-
-    # run_all_baseline_scarcity('gemma-2-9b', layer = 20)
-    # coalesce_all_scarcity('gemma-2-9b', layer = 20)
-
-    # run_all_baseline_class_imbalance('gemma-2-9b', layer =20)
-    # coalesce_all_imbalance('gemma-2-9b', layer = 20)
-
-    # run_all_baseline_corrupt('gemma-2-9b', layer = 20)
-    # coalesce_all_corrupt('gemma-2-9b', layer = 20)
-
-    # run_datasets_OOD('gemma-2-9b', runsae = True, layer = 20, translation=False)
+    import argparse
     
-    # OOD pruning experiment - commented out to allow general baseline training
-    # This specialized analysis requires pre-computed relevance scores and OOD activations
-    # Uncomment only when running the specific interpretability analysis from the paper
-    # datasets = ['90_glue_qnli', '7_hist_fig_ispolitician', '66_living-room']
-    # for dataset in datasets:
-    #     ood_pruning(dataset)
+    parser = argparse.ArgumentParser(description='Train baseline probes')
+    parser.add_argument('--model', type=str, default='gemma-2-9b', 
+                        choices=['gemma-2-9b', 'llama-3.1-8b', 'gemma-2-2b'],
+                        help='Model name')
+    parser.add_argument('--setting', type=str, default='normal',
+                        choices=['normal', 'scarcity', 'class_imbalance', 'label_noise', 'OOD'],
+                        help='Experimental setting')
+    parser.add_argument('--layer', type=int, default=20,
+                        help='Layer to train probes on (for non-normal settings)')
+    
+    args = parser.parse_args()
+    
+    print(f"Training baseline probes: model={args.model}, setting={args.setting}")
+    
+    if args.setting == 'normal':
+        run_all_baseline_normal(args.model)
+        coalesce_all_baseline_normal(args.model)
+    elif args.setting == 'scarcity':
+        run_all_baseline_scarcity(args.model, layer=args.layer)
+        coalesce_all_scarcity(args.model, layer=args.layer)
+    elif args.setting == 'class_imbalance':
+        run_all_baseline_class_imbalance(args.model, layer=args.layer)
+        coalesce_all_imbalance(args.model, layer=args.layer)
+    elif args.setting == 'label_noise':
+        run_all_baseline_corrupt(args.model, layer=args.layer)
+        coalesce_all_corrupt(args.model, layer=args.layer)
+    elif args.setting == 'OOD':
+        run_datasets_OOD(args.model, runsae=False, layer=args.layer, translation=False)
+    else:
+        raise ValueError(f"Unknown setting: {args.setting}")
+    
+    print(f"Baseline training complete for {args.setting} setting!")
