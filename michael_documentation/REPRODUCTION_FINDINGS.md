@@ -1,11 +1,28 @@
 # SAE-Probes Reproduction Findings
-*Updated: August 5, 2025*
+*Updated: August 12, 2025*
 
 ## Executive Summary
 
-**Critical Update**: Discovered major data alignment issues that invalidated initial findings. When properly matching experimental conditions between SAE and baseline methods, SAE probes actually perform WORSE than traditional methods in most settings, with only out-of-distribution (OOD) tasks showing genuine SAE benefits.
+**Current Status**: After correcting data alignment issues and ensuring fair comparisons between SAE and baseline methods, we find that SAE-based probes generally underperform baseline probes across most settings. The notable exception is out-of-distribution (OOD) tasks, where SAE probes show substantial improvements.
 
-**Paper Context**: The original paper "Are Sparse Autoencoders Useful?" concludes that SAEs show "similar results with simple non-SAE baselines" and questions their utility. Our corrected analysis actually provides stronger evidence AGAINST SAE utility than the paper itself suggests.
+**Key Finding**: SAE probes underperform baselines in:
+- Scarcity settings: -0.0101 mean AUC
+- Class imbalance: -0.0155 mean AUC  
+- Overall: -0.0126 mean AUC across 4,403 matched conditions
+
+However, SAE probes excel at OOD generalization with +0.1072 mean AUC improvement.
+
+**Confidence Note**: While our methodology is sound, we have limited confidence in the broader conclusions pending additional validation and critique. The OOD overperformance finding is particularly interesting but requires further investigation.
+
+## Paper Context
+
+**Paper**: "Are Sparse Autoencoders Useful?" (https://arxiv.org/pdf/2502.16681)
+
+The paper examines whether SAE features provide advantages for probing tasks compared to traditional baseline methods. Our reproduction attempt has revealed complex findings:
+
+1. **Alignment with paper**: SAE probes generally do not outperform baselines (consistent with paper's skepticism)
+2. **Key discrepancy**: Our OOD results show SAE superiority, while the paper reports baseline superiority for covariate-shifted data
+3. **Interpretation challenge**: The specific types of distribution shifts tested may differ between implementations
 
 ## Major Discovery: Condition Matching Problem
 
@@ -49,24 +66,26 @@ The visualization code was comparing SAE and baseline methods without ensuring t
 
 ## Corrected Key Findings
 
-### 1. OOD Setting - Surprising Contradiction with Paper
+### 1. PRIMARY FINDING: OOD Overperformance by SAE Probes
 
-**Our Performance Results**:
-- All 8 datasets showed improvement with SAE probes
-- Mean improvement: +0.107 AUC (substantial)
-- Best: `90_glue_qnli` (+0.266 AUC: 0.644 → 0.911)
-- Worst: `87_glue_cola` (+0.042 AUC: 0.791 → 0.833)
+**The Notable Exception**: While SAE probes underperform in most settings, they show remarkable superiority for out-of-distribution generalization:
 
-**Critical Discrepancy with Paper**:
+**Performance Results**:
+- **Success rate**: 100% (all 8 OOD datasets show SAE improvement)
+- **Mean improvement**: +0.107 AUC (substantial and consistent)
+- **Best case**: `90_glue_qnli` (+0.266 AUC: 0.644 → 0.911)
+- **Worst case**: `87_glue_cola` (+0.042 AUC: 0.791 → 0.833)
+
+**Important Caveat - Contradicts Paper**:
 - **Paper reports**: "baselines outperform SAE probes when generalizing to covariate shifted data"
-- **Paper's OOD types**: Language changes, syntactic alterations, character substitutions
-- **Our results**: Complete opposite - SAEs consistently outperform baselines
+- **Our results**: Complete opposite - SAEs consistently outperform baselines on OOD
+- **Implication**: This discrepancy requires careful investigation before drawing strong conclusions
 
-**Possible Explanations**:
-1. **Different OOD definitions**: Paper uses linguistic shifts; ours may differ
-2. **SAE selection bias**: We test multiple SAEs and pick best; paper uses single SAE
-3. **Feature selection**: Our top-k selection may favor SAEs
-4. **Implementation differences**: Train/test split or data processing variations
+**Possible Explanations for OOD Success**:
+1. **Semantic features**: SAE features may capture more transferable semantic patterns
+2. **Robustness**: Less reliance on dataset-specific statistical regularities
+3. **Feature selection**: Our top-k selection process may be particularly effective for OOD
+4. **Implementation differences**: Our OOD definition may differ from the paper's linguistic shifts
 
 ### 2. Scarcity Setting - SAEs Struggle with Limited Data
 
@@ -140,14 +159,37 @@ SAEs show **worse** results than baselines in most settings:
 ### Exception: OOD Generalization
 The +0.107 AUC improvement in OOD settings is substantial and suggests SAE features do have value for transfer learning tasks.
 
+## Confidence Assessment and Limitations
+
+### High Confidence Findings
+- **Methodology correction**: The condition matching problem was real and significant
+- **General underperformance**: SAE probes consistently underperform in scarcity and class imbalance settings
+- **Implementation quality**: Core probe training and evaluation methodology is sound
+
+### Moderate Confidence Findings  
+- **OOD overperformance**: While consistent in our results, it contradicts the paper and needs validation
+- **Feature selection impact**: Our top-k selection may contribute to OOD success
+- **Relative performance magnitudes**: The specific AUC differences observed
+
+### Low Confidence Areas
+- **Generalizability**: Limited to Gemma-2-9b model and specific datasets
+- **OOD interpretation**: Uncertain if our OOD tasks match the paper's intended distribution shifts
+- **Normal setting conclusions**: Only 1 dataset tested (0.9% coverage)
+
+### Critical Uncertainties
+1. **OOD discrepancy explanation**: Why do our results contradict the paper so dramatically?
+2. **Implementation differences**: How much do subtle choices affect conclusions?
+3. **Broader applicability**: Would findings hold for other models, SAE architectures, or tasks?
+
 ## Recommendations
 
 1. **Always verify condition matching** when comparing methods across different experimental settings
 2. **Be skeptical of aggregate statistics** that combine different experimental conditions
 3. **SAEs should be used selectively**:
-   - ✅ Good for: OOD generalization, transfer learning
+   - ✅ Good for: OOD generalization, transfer learning (pending validation)
    - ❌ Poor for: Limited data, class imbalance, standard classification
 4. **Traditional methods remain strong baselines** and often outperform complex approaches
+5. **Require additional validation** before drawing strong conclusions about OOD performance
 
 ## Reproduction Quality Assessment
 
@@ -165,24 +207,84 @@ The +0.107 AUC improvement in OOD settings is substantial and suggests SAE featu
 
 ## Conclusion
 
-Our reproduction reveals that **SAE probes generally underperform traditional methods** when experimental conditions are properly matched. The only exception in our results is out-of-distribution generalization, where SAE features show substantial advantages (+0.107 AUC).
+Our reproduction effort has yielded mixed but informative results:
 
-However, this OOD finding **directly contradicts the paper**, which reports that baselines outperform SAEs on covariate-shifted data. This discrepancy suggests:
+### Core Finding
+**SAE-based probes generally underperform baseline methods** when experimental conditions are properly matched:
+- Scarcity: -0.0101 mean AUC (32.2% improvement rate)
+- Class imbalance: -0.0155 mean AUC (14.7% improvement rate)
+- Overall: -0.0126 mean AUC across 4,403 matched conditions
 
-1. **OOD performance is highly dependent on the type of distribution shift**
-2. **Our OOD implementation may differ significantly from the paper's**
-3. **SAE selection methodology matters** - choosing best of multiple SAEs vs using a single SAE
+This aligns with the paper's skepticism about SAE utility for probing tasks.
 
-The broader finding remains consistent: SAE probes are not universally better than traditional methods and often perform worse, especially with limited data or class imbalance.
+### Notable Exception
+**Out-of-distribution generalization shows dramatic SAE superiority** (+0.107 mean AUC, 100% success rate). This is our most interesting finding, though it directly contradicts the paper's reported results. This discrepancy warrants significant further investigation.
 
-The key lessons: 
-- **Always ensure fair comparisons by matching experimental conditions**
-- **Be cautious about generalizing OOD results** - performance may vary greatly by shift type
-- **Implementation details matter** - seemingly minor differences can reverse conclusions
+### Current Assessment
+While we don't have complete confidence in all conclusions, the evidence suggests:
+1. **Traditional methods are more robust** for standard probing tasks, especially with limited data
+2. **SAE features may excel at capturing transferable patterns** that generalize across distributions
+3. **The value of SAEs is highly context-dependent** - not a universal improvement
+
+### Next Steps Required
+1. **Validate OOD findings** with additional experiments and different distribution shift types
+2. **Investigate discrepancy** between our OOD results and the paper's findings
+3. **Expand coverage** to more models, datasets, and SAE architectures
+4. **Peer review and critique** of methodology and conclusions
+
+The most valuable outcome of this reproduction is not just the specific results, but the discovery of how sensitive conclusions can be to implementation details and the importance of fair experimental comparisons.
 
 ---
 
+## Data Sources and Visualizations
+
+### Primary Result Datasets
+All analyses are based on probe performance results stored in CSV format:
+
+**Baseline Probe Results** (`results/baseline_probes_gemma-2-9b/`):
+- Normal setting: `normal_settings/layer20_results.csv`
+- Scarcity setting: `scarcity/all_results.csv` (2,247 conditions)
+- Class imbalance: `imbalance/all_results.csv` (2,147 conditions)
+- OOD setting: `ood/all_results.csv` (8 datasets)
+
+**SAE Probe Results** (`results/sae_probes_gemma-2-9b/`):
+- Normal setting: `normal_setting/all_metrics.csv` (1 dataset only)
+- Scarcity setting: `scarcity_setting/all_metrics.csv` (113 datasets)
+- Class imbalance: `class_imbalance_setting/all_metrics.csv` (113 datasets)
+- OOD setting: `OOD_setting/all_metrics.csv` (8 datasets)
+
+### Key Visualizations
+
+**Matched Comparison Visualizations** (`figures/matched_comparison/`):
+- `sae_vs_baseline_matched_all.png` - Main comparison with properly matched conditions
+- `scarcity_analysis.png` - Detailed scarcity performance by training size
+- `class_imbalance_analysis.png` - Performance across different imbalance ratios
+- Generated by: `visualize_sae_vs_baseline_matched.py`
+
+**Initial Comparison Visualizations** (`figures/key_comparison/`):
+- `sae_vs_baseline_all_settings.png` - Overview across all settings (unmatched)
+- `sae_vs_baseline_scarcity.png` - Scarcity setting detail
+- `sae_vs_baseline_class_imbalance.png` - Class imbalance detail
+- `sae_vs_baseline_ood.png` - OOD setting detail
+- `performance_distribution.png` - Distribution of performance differences
+- Generated by: `visualize_sae_vs_baseline.py` (Note: uses unmatched comparisons)
+
+**OOD Analysis** (`figures/ood_analysis/`):
+- `ood_sae_vs_baseline.png` - Detailed OOD performance comparison
+- `ood_distribution.png` - Distribution of OOD improvements
+- Shows consistent SAE superiority across all 8 OOD datasets
+
+### Analysis Scripts
+- `visualize_sae_vs_baseline_matched.py` - Corrected analysis with proper condition matching
+- `visualize_sae_vs_baseline.py` - Original analysis (flawed matching)
+- `create_results_summary.py` - Generates summary statistics
+- Scripts located in repository root directory
+
 **Key Files**:
 - Corrected analysis: `visualize_sae_vs_baseline_matched.py`
-- Findings document: `MATCHED_COMPARISON_FINDINGS.md`
-- Visualizations: `figures/matched_comparison/`
+- Findings documents: 
+  - `michael_documentation/MATCHED_COMPARISON_FINDINGS.md`
+  - `michael_documentation/OOD_INVESTIGATION.md`
+  - `michael_documentation/CRITICAL_UPDATE_SUMMARY.md`
+- Visualizations: `figures/matched_comparison/` and `figures/key_comparison/`
+- Raw results: `results/baseline_probes_gemma-2-9b/` and `results/sae_probes_gemma-2-9b/`
