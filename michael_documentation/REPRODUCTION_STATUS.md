@@ -1,12 +1,29 @@
 # SAE-Probes Reproduction Status
-*Updated: July 29, 2025*
+*Updated: August 5, 2025*
 
 ## Summary
-Successfully reproducing the paper "Are Sparse Autoencoders Useful?" on M3 MacBook Pro. **MAJOR SUCCESS: 4 out of 5 experimental settings complete with compelling evidence for SAE superiority!** 
+Successfully reproducing the paper "Are Sparse Autoencoders Useful?" on M3 MacBook Pro. **CRITICAL UPDATE: Discovered major data alignment issues in original analysis. When properly matching experimental conditions, SAE probes actually perform WORSE than baselines in most settings.**
 
-**Key Finding**: While normal setting shows marginal improvement (+0.0012 AUC), **OOD setting provides definitive evidence with +0.107 AUC mean improvement and 100% success rate across all datasets** - strongly supporting the paper's thesis that SAE features are more transferable and interpretable.
+**Key Finding**: Only the OOD (out-of-distribution) setting shows SAE benefits in our reproduction (+0.107 AUC, 100% success rate), but this **directly contradicts the paper's finding** that "baselines outperform SAE probes when generalizing to covariate shifted data." This discrepancy requires further investigation.
 
-## Current Progress - July 29, 2025
+## Critical Discovery - August 5, 2025
+
+### Condition Matching Issue
+Discovered that the original visualization code was comparing SAE and baseline methods **without matching experimental conditions**:
+- **Scarcity**: Compared SAEs trained on large datasets vs baselines trained on small datasets
+- **Class Imbalance**: Didn't ensure same imbalance ratios were compared
+- This made SAE probes appear much better than they actually are
+
+### Corrected Results (Properly Matched Conditions)
+| Setting | Original Result | Matched Result | True Performance |
+|---------|----------------|----------------|------------------|
+| Overall | 78.0% improved (+0.0758) | 23.8% improved (-0.0126) | SAEs WORSE |
+| Scarcity | 81.4% improved (+0.0800) | 32.2% improved (-0.0101) | SAEs WORSE |
+| Class Imbalance | 8.0% improved (-0.0100) | 14.7% improved (-0.0155) | SAEs WORSE |
+| OOD | 100% improved (+0.1072) | 100% improved (+0.1072) | SAEs BETTER |
+| Normal | 100% improved (+0.0012) | 100% improved (+0.0012) | Marginal (n=1) |
+
+## Current Progress - August 5, 2025
 
 ### ✅ Completed
 - **Model activations**: All available (extracted from tar files)
@@ -35,26 +52,35 @@ Successfully reproducing the paper "Are Sparse Autoencoders Useful?" on M3 MacBo
 | label_noise     | ❌ Not started      | ✅ Complete     | ❌ Missing        |
 | OOD             | ✅ 32 results       | ✅ Complete     | ✅ 34 files       |
 
-## Key Findings - Compelling Evidence for SAE Superiority
+## Key Findings - Revised After Condition Matching
 
-### 🎯 **OOD Results (THE DEFINITIVE TEST) - 8 datasets**:
-**Direct SAE vs Best Baseline Comparison:**
-- **100% Success Rate**: All datasets improved with SAE probes
-- **Mean improvement**: +0.107 AUC (massive improvement)
+### 🎯 **OOD Results - The Only Clear SAE Success (BUT CONTRADICTS PAPER)**:
+- **100% Success Rate**: All 8 datasets improved with SAE probes
+- **Mean improvement**: +0.107 AUC (substantial improvement)
 - **Best improvement**: `90_glue_qnli` (+0.266 AUC: 0.644 → 0.911)
-- **Smallest improvement**: `87_glue_cola` (+0.042 AUC: 0.791 → 0.833)
-- **Scientific significance**: Strong evidence SAE features capture transferable concepts
+- **CRITICAL DISCREPANCY**: The paper reports "baselines outperform SAE probes when generalizing to covariate shifted data"
+- **Possible explanations**: Different OOD definitions, SAE selection methodology, or implementation differences
 
-### Normal Setting Results (`5_hist_fig_ismale` dataset):
-- **Best baseline**: Logistic Regression (0.9940 AUC)
-- **Best SAE**: 131k width, L0=221, k=512 features (0.9952 AUC)
-- **Improvement**: +0.0012 AUC (modest but consistent with interpretability benefits)
-- **Success rate**: 15.7% of SAE configs beat best baseline
+### ❌ **Scarcity Setting - SAEs Struggle with Limited Data**:
+- **Success rate**: Only 32.2% of conditions improved
+- **Mean change**: -0.0101 AUC (SAEs perform worse)
+- **Worst with small datasets**: -0.02 to -0.06 AUC with 2-5 training samples
+- **Key insight**: Traditional methods are more sample-efficient
 
-### Experimental Scale Achieved:
-- **Total SAE experiments**: 17,678 across 4 settings
-- **Datasets covered**: 113 unique datasets (scarcity/class_imbalance) + 8 OOD + 1 normal
-- **Methods compared**: 5 baseline approaches vs optimized SAE configurations
+### ❌ **Class Imbalance - SAEs Consistently Underperform**:
+- **Success rate**: Only 14.7% of conditions improved
+- **Mean change**: -0.0155 AUC (worst setting for SAEs)
+- **Consistent across all imbalance ratios**: SAEs struggle regardless of class ratio
+
+### ⚠️ **Normal Setting - Limited Evidence**:
+- **Only 1 dataset tested**: Results not generalizable
+- **Marginal improvement**: +0.0012 AUC
+- **Coverage**: 0.9% of baseline conditions had matching SAE results
+
+### Experimental Scale:
+- **Total matched comparisons**: 4,403 properly matched conditions
+- **Unmatched conditions excluded**: Thousands of invalid comparisons removed
+- **Methods compared**: Best of 5 baseline approaches vs best SAE configuration per condition
 
 ## Next Actions (Priority Order)
 

@@ -1,13 +1,28 @@
 # SAE-Probes Reproduction Findings
-*Updated: July 30, 2025*
+*Updated: August 5, 2025*
 
 ## Executive Summary
 
-**Paper vs. Reproduction Context**: The original paper "Are Sparse Autoencoders Useful?" concludes that SAEs show "similar results with simple non-SAE baselines" and questions their utility. Our partial reproduction on M3 MacBook Pro suggests some evidence for SAE effectiveness, particularly in OOD settings, though our analysis has important limitations.
+**Critical Update**: Discovered major data alignment issues that invalidated initial findings. When properly matching experimental conditions between SAE and baseline methods, SAE probes actually perform WORSE than traditional methods in most settings, with only out-of-distribution (OOD) tasks showing genuine SAE benefits.
 
-**Key Caveat**: Our reproduction involved code modifications, used a subset of the original data, and may not fully represent the paper's complete experimental scope. Results should be interpreted with appropriate caution.
+**Paper Context**: The original paper "Are Sparse Autoencoders Useful?" concludes that SAEs show "similar results with simple non-SAE baselines" and questions their utility. Our corrected analysis actually provides stronger evidence AGAINST SAE utility than the paper itself suggests.
 
-This document presents findings from our reproduction attempt of "Are Sparse Autoencoders Useful?" - we successfully trained both baseline and SAE probes for several experimental settings and can compare SAE features versus raw model activations for binary classification tasks.
+## Major Discovery: Condition Matching Problem
+
+### The Issue
+The visualization code was comparing SAE and baseline methods without ensuring they used the same experimental conditions:
+- **Scarcity**: Compared SAEs trained on large datasets (e.g., 1024 samples) vs baselines trained on small datasets (e.g., 10 samples)
+- **Class Imbalance**: Didn't match the class imbalance ratios between methods
+- This made SAE probes appear much better than they actually are
+
+### Impact on Results
+
+| Setting | Unmatched Comparison | Properly Matched | True Performance |
+|---------|---------------------|------------------|------------------|
+| Overall | 78.0% improved (+0.0758 AUC) | 23.8% improved (-0.0126 AUC) | SAEs WORSE |
+| Scarcity | 81.4% improved (+0.0800 AUC) | 32.2% improved (-0.0101 AUC) | SAEs WORSE |
+| Class Imbalance | 8.0% improved (-0.0100 AUC) | 14.7% improved (-0.0155 AUC) | SAEs WORSE |
+| OOD | 100% improved (+0.1072 AUC) | 100% improved (+0.1072 AUC) | SAEs BETTER |
 
 ## Experimental Setup
 
@@ -15,206 +30,159 @@ This document presents findings from our reproduction attempt of "Are Sparse Aut
 - **Layer**: 20 (primary analysis layer)
 - **Hardware**: M3 MacBook Pro (Apple Silicon)
 - **Environment**: Python 3.11 with uv package management
-- **Analysis Date**: July 28, 2025
+- **Initial Analysis**: July 28-29, 2025
+- **Corrected Analysis**: August 5, 2025
 
-## Data Availability
+## Data Coverage
 
 ### Baseline Probes ✅ Complete
-All baseline probe results are available from pre-computed data:
-- **Normal setting**: 113 datasets × 5 methods = 565 results
-- **Scarcity setting**: Complete results available
-- **Class imbalance setting**: Complete results available  
-- **Label noise setting**: Complete results available
-- **OOD setting**: Complete results available
+- **Normal**: 113 datasets × 5 methods = 565 results
+- **Scarcity**: 2,247 conditions (dataset × training_size combinations)
+- **Class Imbalance**: 2,147 conditions (dataset × imbalance_ratio combinations)
+- **OOD**: 8 datasets
 
-Methods tested: Logistic Regression, PCA+LogReg, KNN, XGBoost, MLP
+### SAE Probes ⚠️ Partially Complete
+- **Normal**: Only 1 dataset (`5_hist_fig_ismale`) - 0.9% coverage
+- **Scarcity**: 113 datasets complete - 100% coverage when matched
+- **Class Imbalance**: 113 datasets complete - 100% coverage when matched
+- **OOD**: 8 datasets complete - 100% coverage
 
-### SAE Probes ✅ Substantial Progress (4 of 5 Settings)
-We successfully trained SAE probes for:
-- **Normal setting**: 70 results (1 dataset: `5_hist_fig_ismale`) 
-- **OOD setting**: 32 results (8 datasets)
-- **Scarcity setting**: 8,988 results (113 datasets)
-- **Class imbalance setting**: 8,588 results (113 datasets)
+## Corrected Key Findings
 
-**Missing**: SAE probes for label_noise setting
-**Limitation**: Normal setting severely undersampled compared to paper's scope
+### 1. OOD Setting - Surprising Contradiction with Paper
 
-## Key Findings (With Important Caveats)
-
-### 1. Out-of-Distribution Results - Suggestive Evidence
-
-**Important Note**: OOD results appear promising but should be interpreted cautiously given our code modifications and potential differences from the original experimental setup.
-
-**OOD Performance (8 datasets)**:
+**Our Performance Results**:
 - All 8 datasets showed improvement with SAE probes
-- Mean improvement: +0.107 AUC 
-- Range: +0.042 to +0.266 AUC improvement
-- **Caveat**: Sample size is small (8 datasets) and we cannot rule out systematic differences from the original study
+- Mean improvement: +0.107 AUC (substantial)
+- Best: `90_glue_qnli` (+0.266 AUC: 0.644 → 0.911)
+- Worst: `87_glue_cola` (+0.042 AUC: 0.791 → 0.833)
 
-**Potential Significance**: If confirmed with the original experimental setup, this could suggest SAE features may generalize better to new distributions, supporting interpretability claims.
+**Critical Discrepancy with Paper**:
+- **Paper reports**: "baselines outperform SAE probes when generalizing to covariate shifted data"
+- **Paper's OOD types**: Language changes, syntactic alterations, character substitutions
+- **Our results**: Complete opposite - SAEs consistently outperform baselines
 
-### 2. Normal Setting Performance Comparison
+**Possible Explanations**:
+1. **Different OOD definitions**: Paper uses linguistic shifts; ours may differ
+2. **SAE selection bias**: We test multiple SAEs and pick best; paper uses single SAE
+3. **Feature selection**: Our top-k selection may favor SAEs
+4. **Implementation differences**: Train/test split or data processing variations
 
-**Dataset Analyzed**: `5_hist_fig_ismale` (gender classification from historical figures)
+### 2. Scarcity Setting - SAEs Struggle with Limited Data
 
-**Baseline Results**:
-- Logistic Regression: 0.9940 AUC (best)
-- PCA+LogReg: 0.9940 AUC  
-- MLP: 0.9936 AUC
-- XGBoost: 0.9883 AUC
-- KNN: 0.9459 AUC
+**Performance by Training Size**:
+- 2-5 samples: SAEs perform -0.02 to -0.06 AUC worse
+- 10-50 samples: SAEs perform ~-0.01 AUC worse
+- 100+ samples: SAEs approach baseline performance
+- Overall: 66.9% of conditions show SAEs performing worse
 
-**SAE Results**:
-- Best SAE config: 131k width, L0=221, k=512 features
-- Best SAE AUC: 0.9952
-- **Improvement over baseline: +0.0012 AUC**
-- Success rate: 15.7% of SAE configurations beat best baseline
+**Key Insight**: Traditional methods (especially logistic regression) are more sample-efficient than SAE-based approaches.
 
-### 2. SAE Performance Characteristics
+### 3. Class Imbalance - Consistent SAE Underperformance
 
-**Feature Selection (k) Analysis**:
-- SAE probes tested with k ∈ {1, 2, 4, 8, 16, 32, 64, 128, 256, 512} features
-- Performance generally increases with more features (k)
-- Best performance achieved with k=512 features
-- Diminishing returns observed at higher k values
+**Performance**:
+- Mean change: -0.0155 AUC (worst setting for SAEs)
+- Only 14.7% of conditions show improvement
+- 72.4% of conditions show SAEs performing worse
+- Consistent underperformance across all imbalance ratios (5% to 45% minority class)
 
-**SAE Configuration Analysis**:
-- 7 different SAE configurations tested (varying L0 sparsity: 11-276)
-- All configurations used 131k width SAEs  
-- L0=221 configuration performed best with high k values
-- Performance range: 0.7205 - 0.9952 AUC across all configs
+### 4. Normal Setting - Insufficient Data
 
-### 3. Limitations and Uncertainties
+**Limitation**: Only 1 dataset tested (`5_hist_fig_ismale`)
+- Baseline best: 0.9940 AUC (Logistic Regression)
+- SAE best: 0.9952 AUC
+- Improvement: +0.0012 AUC (marginal)
+- **Cannot generalize from single datapoint**
 
-**Code Modifications Made**:
-- Fixed baseline training script bugs
-- Optimized SAE activation generation 
-- Modified memory handling for M3 MacBook Pro
-- Excluded 1M width SAEs due to hardware constraints
+## Technical Analysis
 
-**Data Coverage Gaps**:
-- Normal setting: Only 1 dataset vs paper's full scope
-- Missing label_noise SAE results entirely
-- Unknown whether our OOD datasets match paper's exactly
+### Why SAEs Underperform in Most Settings
 
-**Experimental Differences**:
-- Different hardware (M3 vs GPU cluster)
-- Potential differences in random seeds/initialization
-- Modified training procedures due to bug fixes
+1. **Feature Sparsity**: SAE features are extremely sparse, making it harder to learn robust classifiers with limited data
+2. **Feature Selection Overhead**: The k-feature selection process adds complexity without proportional benefit
+3. **Regularization Differences**: L1 regularization for SAEs vs L2 for baselines may not be optimal
+4. **Dimensionality**: SAEs expand the feature space (e.g., 3584 → 131k dimensions) requiring more data
 
-## Technical Insights
+### Why SAEs Excel at OOD
 
-### 1. SAE Feature Selection Strategy
-- SAE probes use top-k feature selection based on class mean differences
-- L1 regularization applied to encourage sparsity
-- Feature selection crucial for performance - raw SAE activations too sparse
-
-### 2. Convergence Characteristics  
-- Baseline training showed convergence warnings (normal for high-dimensional data)
-- SAE probes trained efficiently without convergence issues
-- 1000 max iterations adequate for most configurations
-
-### 3. Memory and Performance
-- 131k width SAEs manageable on M3 MacBook Pro
-- 1M width SAEs hit memory limits (64GB+ RAM recommended)
-- SAE activation generation was I/O bound, not compute bound
-- Baseline probe training was CPU bound (multiple hyperparameter searches)
-
-## Reproduction Quality Assessment
-
-### ✅ Successfully Reproduced
-1. **Core comparison methodology**: SAE features vs raw activations
-2. **Feature selection approach**: Top-k based on class differences  
-3. **Regularization strategy**: L1 for SAE probes, L2 for baselines
-4. **Cross-validation framework**: Appropriate for small datasets
-5. **Performance metrics**: AUC, accuracy, F1 score
-
-### ⚠️ Limitations
-1. **Scale**: Only 1 dataset for normal setting vs 113 in full paper
-2. **SAE coverage**: Missing 1M width SAEs due to memory constraints  
-3. **Incomplete settings**: Missing 3 of 5 experimental conditions for SAE probes
-4. **Computational resources**: Single machine vs paper's cluster resources
-
-### 🎯 Next Steps for Complete Reproduction
-1. Generate SAE activations for remaining settings (scarcity, class_imbalance, label_noise)
-2. Train SAE probes for these settings  
-3. Extend to more datasets in normal setting
-4. Access higher-memory machine for 1M width SAEs
-
-## Paper's Central Question: "Are SAE Features Better?"
-
-**Our Tentative Evidence** (with important caveats):
-
-**Potentially Supportive Evidence**:
-- OOD setting: Consistent improvements across all 8 datasets tested
-- Large effect sizes in some cases (+0.266 AUC improvement)
-- Suggests possible transferability advantages
-
-**Limiting Evidence**:
-- Normal setting: Only modest improvement (+0.0012 AUC)
-- Configuration sensitivity: Most SAE configs underperform best baseline
-- Small sample sizes in some experimental conditions
-
-**Tentative Assessment**: 
-Our partial reproduction suggests there may be scenarios (particularly OOD tasks) where SAE features provide meaningful advantages. However, our analysis has significant limitations including code modifications, incomplete data coverage, and potential experimental differences from the original study.
-
-**Cannot Definitively Conclude**: Whether our results contradict or support the paper's conclusions due to methodological differences and incomplete reproduction scope.
-
-## Visualizations Generated
-
-1. **Baseline Methods Comparison**: Performance across 5 baseline methods
-2. **SAE vs Baseline Scatter**: Head-to-head comparison  
-3. **SAE Performance by k**: Feature count analysis
-4. **Improvement Distribution**: SAE improvement over baseline
-5. **OOD Dataset Performance**: Cross-dataset generalization
-6. **SAE Configuration Comparison**: L0 sparsity analysis
-7. **Detailed Method Comparison**: All methods side-by-side
-
-All visualizations saved to `figures/` directory with timestamps for reproducibility.
+1. **Semantic Features**: SAE features may capture more semantic/interpretable patterns
+2. **Transferability**: These semantic features generalize better to distribution shifts
+3. **Robustness**: Less reliance on dataset-specific patterns
 
 ## Methodology Validation
 
-### Code Quality ✅
-- Fixed critical bugs in `run_baselines.py` (dataset parameter issue)
-- Optimized SAE activation generation (10-100x speedup)
-- Proper error handling for missing datasets
-- Results aggregation pipeline working correctly
+### ✅ Correctly Implemented
+- Core probe training methodology
+- Cross-validation and hyperparameter search
+- Performance metrics calculation
 
-### Experimental Rigor ✅  
-- Cross-validation implemented correctly
-- Hyperparameter tuning for baseline methods
-- Multiple random seeds for robustness
-- Proper train/test splits maintained
+### ❌ Critical Flaw Discovered
+- Visualization code didn't match experimental conditions
+- This created an unfair comparison favoring SAEs
+- Once corrected, the true performance emerged
 
-### Reproducibility ✅
-- All code changes documented and tracked
-- Results timestamped and preserved  
-- Environment fully specified (pyproject.toml)
-- Detailed logs of all experimental runs
+### ✅ Fix Implemented
+- Created `visualize_sae_vs_baseline_matched.py` with proper condition matching
+- Validates that comparisons use same (dataset, condition) pairs
+- Generates both aggregate and per-setting visualizations
 
-## Conclusion - Partial Reproduction with Mixed Signals
+## Implications for the Paper's Conclusions
 
-**What We Can Say**: Our partial reproduction suggests the paper's methodology is sound and reproducible on consumer hardware. We observed some potentially interesting patterns, particularly in OOD settings, that warrant further investigation.
+### Original Paper Claims
+"SAEs show similar results with simple non-SAE baselines"
 
-**What We Cannot Conclude**: Due to code modifications, incomplete data coverage, and experimental differences, we cannot definitively assess whether our results support or contradict the paper's main conclusions about SAE utility.
+### Our Findings
+SAEs show **worse** results than baselines in most settings:
+- Scarcity: -0.0101 mean AUC
+- Class Imbalance: -0.0155 mean AUC
+- Overall: -0.0126 mean AUC across 4,403 matched conditions
 
-**Key Findings**:
-1. **Methodology works**: Core experimental framework is reproducible
-2. **Mixed evidence**: Some settings show SAE promise, others show modest gains
-3. **Baseline strength**: Traditional methods remain competitive
-4. **Setting-dependent**: Results vary significantly across experimental conditions
+### Exception: OOD Generalization
+The +0.107 AUC improvement in OOD settings is substantial and suggests SAE features do have value for transfer learning tasks.
 
-**Limitations of This Analysis**:
-- Modified codebase may affect comparability
-- Incomplete experimental coverage (missing label_noise, limited normal setting)
-- Hardware differences may introduce systematic changes
-- Small sample sizes in some conditions limit statistical confidence
+## Recommendations
 
-**Recommendation**: A complete reproduction using the original, unmodified experimental setup would be needed to definitively assess the paper's conclusions about SAE utility.
+1. **Always verify condition matching** when comparing methods across different experimental settings
+2. **Be skeptical of aggregate statistics** that combine different experimental conditions
+3. **SAEs should be used selectively**:
+   - ✅ Good for: OOD generalization, transfer learning
+   - ❌ Poor for: Limited data, class imbalance, standard classification
+4. **Traditional methods remain strong baselines** and often outperform complex approaches
+
+## Reproduction Quality Assessment
+
+### ✅ What We Successfully Reproduced
+1. Core experimental methodology
+2. Probe training for both baselines and SAEs
+3. Multiple experimental settings
+4. Discovered and fixed critical comparison flaw
+
+### ⚠️ Limitations
+1. Normal setting has only 1 dataset (not representative)
+2. Missing label_noise setting entirely
+3. Limited to single model (Gemma-2-9b)
+4. Hardware constraints prevented 1M width SAE testing
+
+## Conclusion
+
+Our reproduction reveals that **SAE probes generally underperform traditional methods** when experimental conditions are properly matched. The only exception in our results is out-of-distribution generalization, where SAE features show substantial advantages (+0.107 AUC).
+
+However, this OOD finding **directly contradicts the paper**, which reports that baselines outperform SAEs on covariate-shifted data. This discrepancy suggests:
+
+1. **OOD performance is highly dependent on the type of distribution shift**
+2. **Our OOD implementation may differ significantly from the paper's**
+3. **SAE selection methodology matters** - choosing best of multiple SAEs vs using a single SAE
+
+The broader finding remains consistent: SAE probes are not universally better than traditional methods and often perform worse, especially with limited data or class imbalance.
+
+The key lessons: 
+- **Always ensure fair comparisons by matching experimental conditions**
+- **Be cautious about generalizing OOD results** - performance may vary greatly by shift type
+- **Implementation details matter** - seemingly minor differences can reverse conclusions
 
 ---
 
-**Files Generated**:
-- Timestamped results: `results/sae_probes_gemma-2-9b/*/all_metrics_20250728_210729.csv` 
-- Visualizations: `figures/simple/`, `figures/detailed/`, `figures/comparison/`
-- Analysis scripts: `visualize_results.py`, `visualize_sae_details.py`, `compare_single_dataset.py`
+**Key Files**:
+- Corrected analysis: `visualize_sae_vs_baseline_matched.py`
+- Findings document: `MATCHED_COMPARISON_FINDINGS.md`
+- Visualizations: `figures/matched_comparison/`
